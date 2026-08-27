@@ -1,2 +1,1 @@
 # DigitalMonkeyStudio
-# DigitalMonkeyStudio
