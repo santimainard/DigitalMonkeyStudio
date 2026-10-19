@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administración · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<p class="eyebrow">URUGUAY MNATURAL</p>
+<h1>Administración</h1>
+<h2>Emprendimientos</h2>
+<p class="empty" th:if="${#lists.isEmpty(ventures)}">No hay emprendimientos registrados.</p>
+<details class="panel" th:each="v:${ventures}">
+<summary>
+<strong th:text="${v.commercial_name}">
+</strong> · <span th:text="${@fmt.state(v.verification_status)}">
+</span>
+</summary>
+<dl>
+<dt>Responsable</dt>
+<dd th:text="|${v.first_name} ${v.last_name}|">
+</dd>
+<dt>Personería y documento</dt>
+<dd th:text="|${v.legal_type} · ${v.document ?: ''}|">
+</dd>
+<dt>Razón social y RUT</dt>
+<dd th:text="|${v.legal_name ?: ''} · ${v.tax_id ?: ''}|">
+</dd>
+<dt>Contacto comercial</dt>
+<dd th:text="|${v.contact_email} · ${v.phone}|">
+</dd>
+<dt>Ubicación</dt>
+<dd th:text="${v.location_description}">
+</dd>
+<dt>Descripción</dt>
+<dd th:text="${v.description}">
+</dd>
+</dl>
+<form th:if="${v.verification_status == 'PENDING'}" th:action="@{/admin/ventures/{id}/approve(id=${v.id})}" method="post">
+<button>Aprobar emprendimiento</button>
+</form>
+</details>
+<div class="two-columns">
+<section th:each="kind:${ {'categories','equipment'} }">
+<h2 th:text="${kind == 'categories' ? 'Categorías' : 'Equipamiento'}">
+</h2>
+<form th:action="@{/admin/catalogs/{kind}(kind=${kind})}" method="post" class="row">
+<label>Nombre nuevo<input name="name" maxlength="150" required>
+</label>
+<button>Agregar</button>
+</form>
+<form th:each="c:${kind == 'categories' ? categories : equipmentTypes}" th:action="@{/admin/catalogs/{kind}(kind=${kind})}" method="post" class="catalog-row">
+<input type="hidden" name="id" th:value="${c.id}">
+<label th:attr="aria-label=${c.name}">
+<input name="name" maxlength="150" required th:value="${c.name}">
+</label>
+<small th:text="${c.active ? 'Activo' : 'Inactivo'}">
+</small>
+<div class="actions">
+<button class="secondary small" name="action" value="save">Guardar</button>
+<button class="secondary small" name="action" th:value="${c.active ? 'deactivate' : 'activate'}" th:text="${c.active ? 'Desactivar' : 'Activar'}">
+</button>
+<button class="danger small" name="action" value="delete" data-confirm="¿Eliminar? Si está en uso, se desactivará.">Eliminar</button>
+</div>
+</form>
+</section>
+</div>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

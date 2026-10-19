@@ -1,0 +1,664 @@
+openapi: 3.0.3
+info:
+  title: Uruguay Mnatural API
+  version: 1.0.0
+  description: API del Proyecto TIC 2026. Fechas diarias/mensuales interpretadas en
+    America/Montevideo. Listados paginados; orden determinista. La aprobación requiere
+    HTTP Basic ADMIN. Reservas privadas requieren sesión de login y token CSRF del
+    formulario (cabecera X-CSRF-TOKEN).
+servers:
+- url: http://localhost:8080/api/v1
+  description: Desarrollo local
+paths:
+  /ventures:
+    get:
+      summary: Listar todos los emprendimientos registrados y su estado
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Venture'
+                  page: &id001
+                    type: integer
+                    format: int64
+                  size: *id001
+                  totalElements: *id001
+                  totalPages: *id001
+                required:
+                - content
+                - page
+                - size
+                - totalElements
+                - totalPages
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - &id002
+        name: page
+        in: query
+        required: false
+        description: Página desde cero
+        schema:
+          type: integer
+          default: 0
+          minimum: 0
+      - &id003
+        name: size
+        in: query
+        required: false
+        description: Tamaño máximo 100
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      - name: departmentId
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: integer
+      - name: localityId
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: integer
+  /activities/search:
+    get:
+      summary: Buscar por nombre, descripción o emprendimiento
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+                  page: *id001
+                  size: *id001
+                  totalElements: *id001
+                  totalPages: *id001
+                required:
+                - content
+                - page
+                - size
+                - totalElements
+                - totalPages
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: q
+        in: query
+        required: true
+        description: Texto parcial entre 1 y 100 caracteres
+        schema:
+          type: string
+      - *id002
+      - *id003
+  /activities/by-day:
+    get:
+      summary: Listar instancias por fecha y ubicación
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Instance'
+                  page: *id001
+                  size: *id001
+                  totalElements: *id001
+                  totalPages: *id001
+                required:
+                - content
+                - page
+                - size
+                - totalElements
+                - totalPages
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: date
+        in: query
+        required: true
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: departmentId
+        in: query
+        required: false
+        description: Obligatorio si no se indica localidad
+        schema:
+          type: integer
+      - name: localityId
+        in: query
+        required: false
+        description: Obligatorio si no se indica departamento
+        schema:
+          type: integer
+      - *id002
+      - *id003
+  /activities/top-rated:
+    get:
+      summary: Top 3 por reseñas publicadas en el mes y departamento
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month: &id004
+                    type: string
+                  departmentId: *id001
+                  items:
+                    type: array
+                    maxItems: 3
+                    items:
+                      type: object
+                      properties:
+                        activityId: *id001
+                        name: *id004
+                        departmentId: *id001
+                        monthlyAverage:
+                          type: number
+                        monthlyReviewCount: *id001
+                      required:
+                      - activityId
+                      - name
+                      - departmentId
+                      - monthlyAverage
+                      - monthlyReviewCount
+                required:
+                - month
+                - departmentId
+                - items
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: month
+        in: query
+        required: true
+        description: YYYY-MM
+        schema:
+          type: string
+      - name: departmentId
+        in: query
+        required: true
+        description: ''
+        schema:
+          type: integer
+  /activities/{id}:
+    get:
+      summary: Detalle público con categorías, equipo, promedio e instancias
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+  /admin/ventures/{id}/verification:
+    patch:
+      summary: Aprobar emprendimiento como administrador
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - VERIFIED
+              required:
+              - status
+      security:
+      - adminBasic: []
+  /reservations:
+    post:
+      summary: Crear reserva idempotente y solicitar pago
+      responses:
+        '201':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instanceId: *id001
+                participantCount:
+                  type: integer
+                  minimum: 1
+                  maximum: 100000
+              required:
+              - instanceId
+              - participantCount
+            example:
+              instanceId: 1
+              participantCount: 2
+      security:
+      - session: []
+        csrf: []
+  /reservations/{id}:
+    get:
+      summary: Consultar reserva propia
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - &id005
+        name: id
+        in: path
+        required: true
+        schema: &id006
+          type: string
+          format: uuid
+      security:
+      - session: []
+  /reservations/{id}/reviews:
+    post:
+      summary: Crear una reseña después del fin con pago aprobado
+      responses:
+        '201':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      parameters:
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                  maxLength: 2000
+              required:
+              - rating
+      security:
+      - session: []
+        csrf: []
+  /payment-events:
+    post:
+      summary: Recibir evento autenticado y verificar contra el servicio externo
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventId: *id004
+                paymentId: *id004
+                merchantReference: *id004
+                status: *id004
+              required:
+              - eventId
+              - paymentId
+              - merchantReference
+              - status
+      security:
+      - webhook: []
+components:
+  securitySchemes:
+    adminBasic:
+      type: http
+      scheme: basic
+    session:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+    csrf:
+      type: apiKey
+      in: header
+      name: X-CSRF-TOKEN
+    webhook:
+      type: apiKey
+      in: header
+      name: X-Webhook-Token
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: *id004
+        message: *id004
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: *id004
+              message: *id004
+            required:
+            - field
+            - message
+        correlationId: *id006
+      required:
+      - code
+      - message
+      - fieldErrors
+      - correlationId
+    Venture:
+      type: object
+      properties:
+        id: *id001
+        commercialName: *id004
+        description: *id004
+        verificationStatus:
+          type: string
+          enum:
+          - PENDING
+          - VERIFIED
+        contactEmail: *id004
+        phone: *id004
+        departmentId: *id001
+        departmentName: *id004
+        localityId: *id001
+        localityName: *id004
+        locationDescription: *id004
+      required:
+      - id
+      - commercialName
+      - description
+      - verificationStatus
+      - contactEmail
+      - phone
+      - departmentId
+      - departmentName
+      - localityId
+      - localityName
+      - locationDescription
+    Activity:
+      type: object
+      properties:
+        id: *id001
+        ventureId: *id001
+        ventureName: *id004
+        name: *id004
+        description: *id004
+        unitPrice:
+          type: number
+        currency:
+          type: string
+          enum:
+          - UYU
+        durationMinutes: *id001
+        bookingLeadMinutes: *id001
+        departmentId: *id001
+        localityId: *id001
+        locationDescription: *id004
+        averageRating:
+          type: number
+          nullable: true
+        reviewCount: *id001
+      required:
+      - id
+      - ventureId
+      - ventureName
+      - name
+      - description
+      - unitPrice
+      - currency
+      - durationMinutes
+      - bookingLeadMinutes
+      - departmentId
+      - localityId
+      - locationDescription
+      - averageRating
+      - reviewCount
+    Instance:
+      type: object
+      properties:
+        id: *id001
+        activityId: *id001
+        activityName: *id004
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          nullable: true
+        availableCapacity:
+          type: integer
+          nullable: true
+        bookingDeadline:
+          type: string
+          format: date-time
+        bookable:
+          type: boolean
+      required:
+      - id
+      - activityId
+      - activityName
+      - startsAt
+      - endsAt
+      - capacity
+      - availableCapacity
+      - bookingDeadline
+      - bookable
+    Reservation:
+      type: object
+      properties:
+        id: *id006
+        code:
+          type: string
+          nullable: true
+        activityNameSnapshot: *id004
+        startsAtSnapshot:
+          type: string
+          format: date-time
+        endsAtSnapshot:
+          type: string
+          format: date-time
+        participantCount: *id001
+        unitPriceSnapshot:
+          type: number
+        totalAmount:
+          type: number
+        currency: *id004
+        status:
+          type: string
+          enum:
+          - PENDING_PAYMENT
+          - PAYMENT_UNCERTAIN
+          - CONFIRMED
+          - COMPLETED
+          - REJECTED
+          - EXPIRED
+          - PAYMENT_CANCELLED
+        paymentStatus: *id004
+        expiresAt:
+          type: string
+          format: date-time
+        checkoutUrl:
+          type: string
+          nullable: true
+        canReview:
+          type: boolean
+      required:
+      - id
+      - code
+      - activityNameSnapshot
+      - startsAtSnapshot
+      - endsAtSnapshot
+      - participantCount
+      - unitPriceSnapshot
+      - totalAmount
+      - currency
+      - status
+      - paymentStatus
+      - expiresAt
+      - checkoutUrl
+      - canReview
+  responses:
+    Error:
+      description: Error de validación, autenticación, autorización o negocio
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

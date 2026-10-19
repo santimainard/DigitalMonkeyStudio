@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header th:fragment="header">
+<a class="brand" th:href="@{/}">UM<span>Uruguay Mnatural</span>
+</a>
+<nav aria-label="Principal">
+<a th:href="@{/}">Explorar</a>
+<th:block th:if="${viewer == null}">
+<a th:href="@{/register}">Crear cuenta</a>
+<a class="button small" th:href="@{/login}">Ingresar</a>
+</th:block>
+<th:block th:if="${viewer != null}">
+<a th:href="@{/dashboard}">Mi espacio</a>
+<span th:text="${viewer.first_name}">
+</span>
+<form th:action="@{/logout}" method="post">
+<button class="subtle" type="submit">Salir</button>
+</form>
+</th:block>
+</nav>
+</header>
+<footer th:fragment="footer">
+<strong>Uruguay Mnatural</strong>
+<span>Experiencias en todo el país · Proyecto TIC 2026</span>
+<a th:href="@{/openapi.yaml}">API</a>
+</footer>
+<div th:fragment="pagination(result)" class="pagination" th:if="${result.totalPages > 1}">
+<a class="page-link button secondary" th:if="${result.page > 0}" th:href="@{''(page=${result.page - 1})}" th:attr="data-page=${result.page - 1}">Anterior</a>
+<span th:text="|Página ${result.page + 1} de ${result.totalPages}|">
+</span>
+<a class="page-link button secondary" th:if="${result.page + 1 < result.totalPages}" th:href="@{''(page=${result.page + 1})}" th:attr="data-page=${result.page + 1}">Siguiente</a>
+</div>
+</body>
+</html>

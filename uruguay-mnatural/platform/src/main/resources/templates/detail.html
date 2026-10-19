@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Actividad · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<a th:href="@{/}">← Volver al catálogo</a>
+<section class="detail-head">
+<p class="eyebrow" th:text="|${activity.department_name} / ${activity.locality_name}|">
+</p>
+<h1 th:text="${activity.name}">
+</h1>
+<p th:text="${activity.commercial_name}">
+</p>
+<div class="tags">
+<span th:each="c:${activityCategories}" th:text="${c.name}">
+</span>
+</div>
+</section>
+<div class="two-columns">
+<section>
+<h2>La experiencia</h2>
+<p class="preline" th:text="${activity.description}">
+</p>
+<dl>
+<dt>Duración</dt>
+<dd th:text="|${activity.duration_minutes} minutos|">
+</dd>
+<dt>Punto de encuentro</dt>
+<dd th:text="${activity.location_description}">
+</dd>
+<dt>Condiciones</dt>
+<dd class="preline" th:text="${activity.conditions}">
+</dd>
+<dt th:if="${activity.min_age != null}">Edad mínima</dt>
+<dd th:if="${activity.min_age != null}" th:text="|${activity.min_age} años|">
+</dd>
+</dl>
+<h3>Equipamiento</h3>
+<p th:if="${#lists.isEmpty(equipment)}">Sin equipamiento especificado.</p>
+<ul>
+<li th:each="e:${equipment}" th:text="|${e.name}: ${e.mode == 'PROVIDED' ? 'lo aporta el prestador' : 'debés llevarlo'}|">
+</li>
+</ul>
+<h2 th:text="|Reseñas · ${@fmt.rating(activity.average_rating)}|">
+</h2>
+<p th:if="${#lists.isEmpty(reviews)}">Todavía no hay reseñas en esta página.</p>
+<article class="review" th:each="r:${reviews}">
+<strong th:text="|${r.first_name} · ${r.rating}/5|">
+</strong>
+<small th:text="${@fmt.date(r.created_at)}">
+</small>
+<p th:text="${r.comment}">
+</p>
+</article>
+<a th:if="${reviewPage > 0}" th:href="@{/activities/{id}(id=${activity.id},reviewPage=${reviewPage - 1})}">Reseñas anteriores</a>
+<a th:if="${#lists.size(reviews) == 20}" th:href="@{/activities/{id}(id=${activity.id},reviewPage=${reviewPage + 1})}">Más reseñas</a>
+</section>
+<aside class="panel">
+<p>Precio por persona</p>
+<h2 th:text="|UYU ${activity.unit_price}|">
+</h2>
+<h3>Próximas fechas</h3>
+<p th:if="${#lists.isEmpty(instances)}">No hay próximas fechas disponibles.</p>
+<article class="slot" th:each="i:${instances}">
+<strong th:text="${@fmt.date(i.starts_at)}">
+</strong>
+<small th:text="|Finaliza ${@fmt.date(i.ends_at)}|">
+</small>
+<p th:text="${i.available == null ? 'Cupo ilimitado' : i.available + ' lugares disponibles'}">
+</p>
+<small th:text="|Reservá hasta ${@fmt.date(i.deadline)}|">
+</small>
+<form th:if="${i.bookable}" th:action="@{/tourist/prepare}" method="get">
+<input type="hidden" name="instanceId" th:value="${i.id}">
+<label>Participantes<input name="participantCount" type="number" min="1" max="100000" value="1" required>
+</label>
+<button>Elegir fecha</button>
+</form>
+<p th:unless="${i.bookable}" class="muted">Agotada o fuera del plazo de reserva.</p>
+</article>
+</aside>
+</div>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirmá tu reserva · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="narrow">
+<p class="eyebrow">REVISÁ TU ELECCIÓN</p>
+<h1 th:text="${activity.name}">
+</h1>
+<dl>
+<dt>Inicio</dt>
+<dd th:text="${@fmt.date(instance.starts_at)}">
+</dd>
+<dt>Finalización</dt>
+<dd th:text="${@fmt.date(instance.ends_at)}">
+</dd>
+<dt>Precio por persona</dt>
+<dd th:text="|UYU ${activity.unit_price}|">
+</dd>
+<dt>Participantes</dt>
+<dd th:text="${count}">
+</dd>
+<dt>Total</dt>
+<dd>
+<strong th:text="|UYU ${total}|">
+</strong>
+</dd>
+</dl>
+<p>Al continuar se comprueba el cupo y se retienen los lugares durante 10 minutos para completar el pago. El pago se realiza en un simulador, sin dinero real.</p>
+<form th:action="@{/tourist/reservations}" method="post" class="once">
+<input type="hidden" name="instanceId" th:value="${instance.id}">
+<input type="hidden" name="participantCount" th:value="${count}">
+<input type="hidden" name="key" th:value="${key}">
+<button>Crear reserva y continuar al pago</button>
+</form>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

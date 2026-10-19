@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editar actividad · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="medium">
+<a th:href="@{/provider}">← Mi emprendimiento</a>
+<h1 th:text="${activityId == null ? 'Nueva actividad' : 'Editar actividad'}">
+</h1>
+<form th:action="@{/provider/activities}" method="post" th:object="${form}">
+<input th:if="${activityId != null}" type="hidden" name="activityId" th:value="${activityId}">
+<div class="notice" th:if="${#fields.hasAnyErrors()}">
+<p th:each="err:${#fields.allErrors()}" th:text="${err}">
+</p>
+</div>
+<label>Nombre<input name="name" maxlength="150" required th:value="${form.name}">
+</label>
+<label>Descripción<textarea name="description" maxlength="5000" required th:text="${form.description}">
+</textarea>
+</label>
+<div class="row">
+<label>Precio por persona en UYU<input type="number" name="unitPrice" min="0.01" step="0.01" required th:value="${form.unitPrice}">
+</label>
+<label>Duración en minutos<input type="number" name="durationMinutes" min="1" required th:value="${form.durationMinutes}">
+</label>
+<label>Anticipación mínima en minutos<input type="number" name="bookingLeadMinutes" min="0" required th:value="${form.bookingLeadMinutes}">
+</label>
+</div>
+<div class="row location-group">
+<label>Departamento<select name="departmentId" class="department" required>
+<option value="">Seleccioná</option>
+<option th:each="d:${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${form.departmentId == d.id}">
+</option>
+</select>
+</label>
+<label>Localidad<select name="localityId" class="locality" required>
+<option value="">Seleccioná</option>
+<option th:each="l:${localities}" th:value="${l.id}" th:attr="data-department=${l.department_id}" th:text="${l.name}" th:selected="${form.localityId == l.id}">
+</option>
+</select>
+</label>
+</div>
+<label>Punto de encuentro<input name="locationDescription" maxlength="300" required th:value="${form.locationDescription}">
+</label>
+<label>Edad mínima (opcional)<input type="number" name="minAge" min="0" max="120" th:value="${form.minAge}">
+</label>
+<label>Condiciones y requisitos<textarea name="conditions" maxlength="5000" required th:text="${form.conditions}">
+</textarea>
+</label>
+<fieldset>
+<legend>Categorías</legend>
+<label class="check" th:each="c:${categories}" th:if="${c.active or form.categoryIds.contains(c.id)}">
+<input type="checkbox" name="categoryIds" th:value="${c.id}" th:checked="${form.categoryIds.contains(c.id)}">
+<span th:text="${c.name}">
+</span>
+</label>
+</fieldset>
+<div class="row">
+<fieldset>
+<legend>Equipamiento proporcionado</legend>
+<label class="check" th:each="e:${equipmentTypes}" th:if="${e.active or form.providedIds.contains(e.id)}">
+<input type="checkbox" name="providedIds" th:value="${e.id}" th:checked="${form.providedIds.contains(e.id)}">
+<span th:text="${e.name}">
+</span>
+</label>
+</fieldset>
+<fieldset>
+<legend>El turista debe llevar</legend>
+<label class="check" th:each="e:${equipmentTypes}" th:if="${e.active or form.requiredIds.contains(e.id)}">
+<input type="checkbox" name="requiredIds" th:value="${e.id}" th:checked="${form.requiredIds.contains(e.id)}">
+<span th:text="${e.name}">
+</span>
+</label>
+</fieldset>
+</div>
+<label class="check">
+<input type="checkbox" name="published" value="true" th:checked="${form.published}">Publicar actividad (requiere emprendimiento verificado)</label>
+<p class="muted">Los cambios de duración se aplican a nuevas instancias. Las reservas existentes conservan sus condiciones.</p>
+<button>Guardar actividad</button>
+</form>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

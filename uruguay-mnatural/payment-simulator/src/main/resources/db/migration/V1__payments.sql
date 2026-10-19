@@ -1,0 +1,3 @@
+create table simulated_payment(id uuid primary key,merchant_reference varchar(100) not null unique,amount numeric(16,2) not null check(amount>0),currency varchar(3) not null,status varchar(20) not null check(status in ('PENDING','APPROVED','REJECTED','CANCELLED','EXPIRED')),expires_at timestamp with time zone not null,approved_at timestamp with time zone,callback_url varchar(1000) not null,event_id uuid not null,created_at timestamp with time zone not null default current_timestamp);
+create table simulator_setting(id integer primary key,mode varchar(40) not null);
+insert into simulator_setting(id,mode) values(1,'NORMAL');

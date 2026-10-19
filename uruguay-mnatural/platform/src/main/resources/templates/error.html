@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Revisá la operación · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="narrow">
+<p class="eyebrow" th:text="${code ?: 'ERROR'}">
+</p>
+<h1>No pudimos completar la operación</h1>
+<p th:text="${message ?: 'Se produjo un error. Volvé a intentarlo.'}">
+</p>
+<ul th:if="${fields != null}">
+<li th:each="f:${fields}" th:text="|${f.field}: ${f.message}|">
+</li>
+</ul>
+<p class="muted" th:if="${correlationId != null}" th:text="|Referencia: ${correlationId}|">
+</p>
+<div class="actions">
+<button onclick="history.back()">Volver y corregir</button>
+<a th:href="@{/}">Ir al inicio</a>
+</div>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Detalle de reserva · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="medium">
+<a th:href="@{/tourist/reservations}">← Mis reservas</a>
+<p class="eyebrow">RESERVA</p>
+<h1 th:text="${reservation.activity_name_snapshot}">
+</h1>
+<span class="badge" th:text="${@fmt.state(reservation.status)}">
+</span>
+<dl>
+<dt>Código</dt>
+<dd th:text="${reservation.code ?: 'Se generará al aprobar el pago'}">
+</dd>
+<dt>Titular</dt>
+<dd th:text="|${reservation.first_name} ${reservation.last_name}|">
+</dd>
+<dt>Inicio</dt>
+<dd th:text="${@fmt.date(reservation.starts_at_snapshot)}">
+</dd>
+<dt>Finalización</dt>
+<dd th:text="${@fmt.date(reservation.ends_at_snapshot)}">
+</dd>
+<dt>Punto de encuentro</dt>
+<dd th:text="${reservation.location_snapshot}">
+</dd>
+<dt>Personas</dt>
+<dd th:text="${reservation.participant_count}">
+</dd>
+<dt>Precio unitario</dt>
+<dd th:text="|UYU ${reservation.unit_price_snapshot}|">
+</dd>
+<dt>Total</dt>
+<dd th:text="|UYU ${reservation.total_amount}|">
+</dd>
+<dt>Pago</dt>
+<dd th:text="${@fmt.state(reservation.payment_status)}">
+</dd>
+</dl>
+<div th:if="${reservation.status == 'PENDING_PAYMENT' or reservation.status == 'PAYMENT_UNCERTAIN'}" class="panel">
+<p th:if="${reservation.status == 'PAYMENT_UNCERTAIN'}">Estamos comprobando el pago. Conservamos tus lugares mientras verificamos el resultado. No crees otra reserva para volver a pagar.</p>
+<p th:text="|Plazo para pagar: ${@fmt.date(reservation.expires_at)}|">
+</p>
+<a class="button" th:if="${reservation.status == 'PENDING_PAYMENT' and reservation.checkout_url != null}" th:href="${reservation.checkout_url}">Ir al simulador de pago</a>
+<form th:action="@{/tourist/reservations/{id}/refresh(id=${reservation.id})}" method="post">
+<button class="secondary">Actualizar estado</button>
+</form>
+</div>
+<button class="secondary print" th:if="${reservation.code != null}" onclick="window.print()">Imprimir constancia</button>
+<form th:if="${reservation.can_review}" th:action="@{/tourist/reservations/{id}/review(id=${reservation.id})}" method="post">
+<h2>¿Cómo fue tu experiencia?</h2>
+<label>Puntuación<select name="rating" required>
+<option value="5">5 · Excelente</option>
+<option value="4">4 · Muy buena</option>
+<option value="3">3 · Buena</option>
+<option value="2">2 · Regular</option>
+<option value="1">1 · Mala</option>
+</select>
+</label>
+<label>Comentario opcional<textarea name="comment" maxlength="2000">
+</textarea>
+</label>
+<button>Publicar reseña</button>
+</form>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

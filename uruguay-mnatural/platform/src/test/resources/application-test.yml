@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:tourism;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000
+    username: sa
+    password: ''
+  flyway.enabled: true
+app:
+  admin-email: admin@example.test
+  admin-password: TestOnly123!
+  demo: false
+payment:
+  base-url: http://localhost:19999
+  callback-url: http://localhost:8080/api/v1/payment-events
+  api-key: test-api-key
+  webhook-token: test-webhook
+  reconciliation-delay: 3600000
