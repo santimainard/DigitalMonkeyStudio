@@ -239,7 +239,7 @@ Los controladores Thymeleaf y REST delegan en los mismos servicios para que una 
 | Review | id, reservationId único, rating, comment nullable, createdAt. Actividad y autor se obtienen desde la reserva; no se aceptan del cliente. |
 | Department y Locality | id y name; Locality referencia Department. Venture y Activity referencian ambos de manera consistente. |
 
-**DAT-01.** Longitudes propuestas: nombre y apellido 80, correo 254, documento 40, nombre comercial y actividad 150, razón social 200, teléfono 40, RUT 40, ubicación 300, descripción y condiciones 5.000, comentario 2.000. Rechazar texto obligatorio vacío tras recortar. minAge, si se informa, es entero entre 0 y 120. No validar RUT/documento con reglas fiscales no relevadas; se exige formato no vacío y longitud máxima.
+**DAT-01.** Longitudes propuestas: nombre y apellido 80, correo 254, documento 40, nombre comercial y actividad 150, razón social 200, teléfono 40, RUT 12, ubicación 300, descripción y condiciones 5.000, comentario 2.000. Rechazar texto obligatorio vacío tras recortar. minAge, si se informa, es entero entre 0 y 120. El RUT de personas jurídicas debe contener exactamente 12 dígitos ASCII, sin letras ni separadores. No se valida el dígito verificador fiscal. Para el documento se exige formato no vacío y longitud máxima. Los correos de acceso y contacto deben tener formato nombre@dominio.com y un máximo de 254 caracteres.
 
 **DAT-02.** Aplicar validación en DTO y restricciones SQL: claves foráneas, unicidad, rating de 1 a 5, cantidades positivas, precio positivo y anticipación no negativa. Usar BigDecimal en Java; nunca float/double para dinero. No borrar en cascada reservas, pagos ni reseñas al desactivar entidades.
 

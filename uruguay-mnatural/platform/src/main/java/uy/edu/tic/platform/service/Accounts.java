@@ -46,6 +46,13 @@ public class Accounts {
     return value.strip();
   }
 
+  private static String email(String value, String label) {
+    String result = text(value, 254, label);
+    if (!result.matches("[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+"))
+      throw new BusinessException("INVALID_INPUT", "Revisá el " + label + ": usá un formato como nombre@dominio.com.");
+    return result;
+  }
+
   public void location(Long dep, Long loc) {
     if (dep == null
         || loc == null
@@ -57,7 +64,7 @@ public class Accounts {
   public long register(Registration f) {
     if (!Set.of("TOURIST", "PROVIDER").contains(f.role))
       throw new BusinessException("INVALID_INPUT", "Rol inválido.");
-    String email = text(f.email, 254, "correo").toLowerCase(Locale.ROOT);
+    String email = email(f.email, "correo de acceso").toLowerCase(Locale.ROOT);
     if (db.count("select count(*) from app_user where email=?", email) > 0)
       throw new BusinessException("EMAIL_ALREADY_USED", "Ese correo ya está registrado.");
     if (f.password == null
@@ -83,11 +90,10 @@ public class Accounts {
       location(f.departmentId, f.localityId);
       if (f.legalType.equals("LEGAL")) {
         text(f.legalName, 200, "razón social");
-        text(f.taxId, 40, "RUT");
+        if (f.taxId == null || !f.taxId.matches("[0-9]{12}"))
+          throw new BusinessException("INVALID_INPUT", "El RUT debe contener exactamente 12 dígitos, sin letras ni separadores.");
       }
-      String contact = text(f.contactEmail, 254, "correo comercial");
-      if (!contact.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+"))
-        throw new BusinessException("INVALID_INPUT", "Correo comercial inválido.");
+      String contact = email(f.contactEmail, "correo comercial");
       db.insert(
           "insert into"
               + " venture(owner_id,legal_type,commercial_name,legal_name,tax_id,contact_email,phone,department_id,locality_id,location_description,description)"
@@ -124,9 +130,7 @@ public class Accounts {
       String email, String phone, Long dep, Long loc, String address, String description) {
     role("PROVIDER");
     location(dep, loc);
-    email = text(email, 254, "correo");
-    if (!email.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+"))
-      throw new BusinessException("INVALID_INPUT", "Correo inválido.");
+    email = email(email, "correo comercial");
     db.update(
         "update venture set"
             + " contact_email=?,phone=?,department_id=?,locality_id=?,location_description=?,description=?"

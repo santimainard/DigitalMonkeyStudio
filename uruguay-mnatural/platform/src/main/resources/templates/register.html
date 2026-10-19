@@ -32,7 +32,7 @@
 <label>Apellido<input name="lastName" maxlength="80" required th:value="${form.lastName}">
 </label>
 </div>
-<label>Correo de acceso<input name="email" type="email" maxlength="254" required th:value="${form.email}">
+<label>Correo de acceso<input name="email" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Ingresá un correo como nombre@dominio.com." maxlength="254" required th:value="${form.email}">
 </label>
 <label>Documento del titular o responsable<input name="document" maxlength="40" th:required="${form.role == 'TOURIST'}" th:value="${form.document}">
 </label>
@@ -51,10 +51,11 @@
 <div class="row">
 <label>Razón social (persona jurídica)<input name="legalName" maxlength="200" th:value="${form.legalName}">
 </label>
-<label>RUT (persona jurídica)<input name="taxId" maxlength="40" th:value="${form.taxId}">
+<label>RUT (persona jurídica)<input name="taxId" inputmode="numeric" pattern="[0-9]{12}" minlength="12" maxlength="12" title="Ingresá exactamente 12 dígitos, sin letras ni separadores." th:required="${form.legalType == 'LEGAL'}" th:value="${form.taxId}">
+<small>12 dígitos, sin letras ni separadores.</small>
 </label>
 </div>
-<label>Correo comercial público<input name="contactEmail" type="email" required th:value="${form.contactEmail}">
+<label>Correo comercial público<input name="contactEmail" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Ingresá un correo como nombre@dominio.com." maxlength="254" required th:value="${form.contactEmail}">
 </label>
 <label>Teléfono comercial público<input name="phone" maxlength="40" required th:value="${form.phone}">
 </label>

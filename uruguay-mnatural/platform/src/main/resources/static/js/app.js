@@ -6,3 +6,11 @@ document.querySelectorAll('.page-link').forEach(link=>{const url=new URL(locatio
 document.querySelectorAll('[data-confirm]').forEach(button=>button.addEventListener('click',event=>{if(!confirm(button.dataset.confirm))event.preventDefault();}));
 document.querySelectorAll('form.once').forEach(form=>form.addEventListener('submit',()=>form.querySelectorAll('button').forEach(b=>{b.disabled=true;b.textContent='Procesando…';})));
 document.querySelectorAll('form[method="get"]').forEach(form=>form.addEventListener('submit',()=>{form.querySelectorAll('input,select').forEach(input=>{if(!input.value)input.disabled=true;});}));
+const legalType = document.querySelector('select[name="legalType"]');
+const taxId = document.querySelector('input[name="taxId"]');
+if (legalType && taxId) {
+ const updateTaxId = () => { taxId.required = legalType.value === 'LEGAL'; };
+ legalType.addEventListener('change', updateTaxId);
+ taxId.addEventListener('input', () => { taxId.value = taxId.value.replace(/[^0-9]/g, '').slice(0, 12); });
+ updateTaxId();
+}
