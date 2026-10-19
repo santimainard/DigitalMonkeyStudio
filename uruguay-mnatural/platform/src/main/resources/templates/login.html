@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ingresar · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="narrow">
+<p class="eyebrow">BIENVENIDO</p>
+<h1>Ingresá a tu cuenta</h1>
+<p class="notice" th:if="${param.error}">Correo o contraseña incorrectos.</p>
+<form th:action="@{/login}" method="post">
+<label>Correo<input type="email" name="username" required autocomplete="username">
+</label>
+<label>Contraseña<input type="password" name="password" required autocomplete="current-password">
+</label>
+<button>Ingresar</button>
+</form>
+<p>¿Todavía no tenés cuenta? <a th:href="@{/register}">Registrate</a>
+</p>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

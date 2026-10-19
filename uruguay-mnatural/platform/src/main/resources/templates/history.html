@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mis reservas · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<div class="section-title">
+<h1>Mis reservas</h1>
+<a th:href="@{/}">Buscar una experiencia</a>
+</div>
+<p class="empty" th:if="${#lists.isEmpty(result.content)}">Todavía no tenés reservas.</p>
+<div class="table-wrap">
+<table th:unless="${#lists.isEmpty(result.content)}">
+<thead>
+<tr>
+<th>Actividad</th>
+<th>Fecha</th>
+<th>Personas</th>
+<th>Total</th>
+<th>Estado</th>
+<th>
+</th>
+</tr>
+</thead>
+<tbody>
+<tr th:each="r:${result.content}">
+<td th:text="${r.activity_name_snapshot}">
+</td>
+<td th:text="${@fmt.date(r.starts_at_snapshot)}">
+</td>
+<td th:text="${r.participant_count}">
+</td>
+<td th:text="|UYU ${r.total_amount}|">
+</td>
+<td>
+<span class="badge" th:text="${@fmt.state(r.status)}">
+</span>
+</td>
+<td>
+<a th:href="@{/tourist/reservations/{id}(id=${r.id})}">Ver detalle</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div th:replace="~{fragments :: pagination(${result})}">
+</div>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

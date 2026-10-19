@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi emprendimiento · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<div class="section-title">
+<div>
+<p class="eyebrow">ESPACIO DEL PRESTADOR</p>
+<h1 th:text="${venture.commercial_name}">
+</h1>
+<span class="badge" th:text="${@fmt.state(venture.verification_status)}">
+</span>
+</div>
+<a class="button" th:href="@{/provider/reservations}">Consultar reservas</a>
+</div>
+<details class="panel">
+<summary>Editar datos de contacto y ubicación</summary>
+<form th:action="@{/provider/venture}" method="post">
+<div class="row">
+<label>Correo comercial<input name="contactEmail" type="email" required th:value="${venture.contact_email}">
+</label>
+<label>Teléfono<input name="phone" required maxlength="40" th:value="${venture.phone}">
+</label>
+</div>
+<div class="row location-group">
+<label>Departamento<select name="departmentId" class="department">
+<option th:each="d:${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${venture.department_id == d.id}">
+</option>
+</select>
+</label>
+<label>Localidad<select name="localityId" class="locality">
+<option th:each="l:${localities}" th:value="${l.id}" th:attr="data-department=${l.department_id}" th:text="${l.name}" th:selected="${venture.locality_id == l.id}">
+</option>
+</select>
+</label>
+</div>
+<label>Dirección o referencia<input name="locationDescription" required maxlength="300" th:value="${venture.location_description}">
+</label>
+<label>Descripción<textarea name="description" required maxlength="5000" th:text="${venture.description}">
+</textarea>
+</label>
+<button>Guardar datos</button>
+</form>
+</details>
+<div class="section-title">
+<h2>Mis actividades</h2>
+<a class="button" th:href="@{/provider/activities/new}">Nueva actividad</a>
+</div>
+<p class="empty" th:if="${#lists.isEmpty(activities)}">Creá tu primera actividad y agregale fechas.</p>
+<div class="cards">
+<article class="card card-body" th:each="a:${activities}">
+<span class="badge" th:text="${a.is_published ? 'Publicada' : 'Borrador'}">
+</span>
+<h3 th:text="${a.name}">
+</h3>
+<p th:text="|UYU ${a.unit_price} · ${a.duration_minutes} minutos|">
+</p>
+<div class="actions">
+<a th:href="@{/provider/activities/{id}/edit(id=${a.id})}">Editar</a>
+<a th:href="@{/provider/activities/{id}/instances(id=${a.id})}">Fechas y cupos</a>
+<a th:href="@{/provider/reservations(activityId=${a.id})}">Reservas</a>
+</div>
+</article>
+</div>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crear cuenta · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="medium">
+<h1 th:text="${form.role == 'PROVIDER' ? 'Registrá tu emprendimiento' : 'Creá tu cuenta de turista'}">
+</h1>
+<p>
+<a th:href="@{/register(role='TOURIST')}">Soy turista</a> · <a th:href="@{/register(role='PROVIDER')}">Soy prestador</a>
+</p>
+<form th:action="@{/register}" method="post" th:object="${form}">
+<div class="notice" th:if="${#fields.hasAnyErrors()}">
+<p th:each="err:${#fields.allErrors()}" th:text="${err}">
+</p>
+</div>
+<input type="hidden" name="role" th:value="${form.role}">
+<div class="row">
+<label>Nombre<input name="firstName" maxlength="80" required th:value="${form.firstName}">
+</label>
+<label>Apellido<input name="lastName" maxlength="80" required th:value="${form.lastName}">
+</label>
+</div>
+<label>Correo de acceso<input name="email" type="email" maxlength="254" required th:value="${form.email}">
+</label>
+<label>Documento del titular o responsable<input name="document" maxlength="40" th:required="${form.role == 'TOURIST'}" th:value="${form.document}">
+</label>
+<label>Contraseña<input name="password" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
+<small>Mínimo 8 caracteres.</small>
+</label>
+<th:block th:if="${form.role == 'PROVIDER'}">
+<h2>Datos del emprendimiento</h2>
+<label>Personería<select name="legalType">
+<option value="PHYSICAL" th:selected="${form.legalType == 'PHYSICAL'}">Persona física</option>
+<option value="LEGAL" th:selected="${form.legalType == 'LEGAL'}">Persona jurídica</option>
+</select>
+</label>
+<label>Nombre comercial<input name="commercialName" maxlength="150" required th:value="${form.commercialName}">
+</label>
+<div class="row">
+<label>Razón social (persona jurídica)<input name="legalName" maxlength="200" th:value="${form.legalName}">
+</label>
+<label>RUT (persona jurídica)<input name="taxId" maxlength="40" th:value="${form.taxId}">
+</label>
+</div>
+<label>Correo comercial público<input name="contactEmail" type="email" required th:value="${form.contactEmail}">
+</label>
+<label>Teléfono comercial público<input name="phone" maxlength="40" required th:value="${form.phone}">
+</label>
+<div class="row location-group">
+<label>Departamento<select name="departmentId" class="department" required>
+<option value="">Seleccioná</option>
+<option th:each="d:${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${form.departmentId == d.id}">
+</option>
+</select>
+</label>
+<label>Localidad<select name="localityId" class="locality" required>
+<option value="">Seleccioná</option>
+<option th:each="l:${localities}" th:value="${l.id}" th:attr="data-department=${l.department_id}" th:text="${l.name}" th:selected="${form.localityId == l.id}">
+</option>
+</select>
+</label>
+</div>
+<label>Dirección o referencia<input name="locationDescription" maxlength="300" required th:value="${form.locationDescription}">
+</label>
+<label>Descripción<textarea name="description" maxlength="5000" required th:text="${form.description}">
+</textarea>
+</label>
+<p class="muted">Tu emprendimiento quedará pendiente de aprobación. Podés cargar actividades mientras tanto.</p>
+</th:block>
+<button>Crear cuenta</button>
+</form>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

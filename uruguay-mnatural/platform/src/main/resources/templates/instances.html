@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fechas y cupos · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<a th:href="@{/provider}">← Mis actividades</a>
+<h1 th:text="|Fechas de ${activity.name}|">
+</h1>
+<form th:action="@{/provider/activities/{id}/instances(id=${activity.id})}" method="post" class="panel row">
+<label>Inicio (hora de Uruguay)<input type="datetime-local" name="startsAt" required>
+</label>
+<label>Cupo (vacío = ilimitado)<input type="number" name="capacity" min="1">
+</label>
+<button>Agregar fecha</button>
+</form>
+<p class="empty" th:if="${#lists.isEmpty(instances)}">No hay fechas programadas.</p>
+<article class="panel" th:each="i:${instances}">
+<p th:text="|Finaliza ${@fmt.date(i.ends_at)} · ${i.active ? 'Activa' : 'Eliminada'}|">
+</p>
+<p th:text="${i.available == null ? 'Cupo ilimitado' : i.available + ' lugares libres'}">
+</p>
+<form th:if="${i.active}" th:action="@{/provider/activities/{id}/instances(id=${activity.id})}" method="post" class="row">
+<input type="hidden" name="instanceId" th:value="${i.id}">
+<label>Inicio<input type="datetime-local" name="startsAt" th:value="${@fmt.input(i.starts_at)}" required>
+</label>
+<label>Cupo<input type="number" name="capacity" min="1" th:value="${i.capacity}">
+</label>
+<button>Guardar</button>
+<button class="danger" name="delete" value="true" data-confirm="¿Eliminar esta fecha?">Eliminar</button>
+</form>
+<a th:href="@{/provider/reservations(instanceId=${i.id})}">Consultar reservas de esta fecha</a>
+</article>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

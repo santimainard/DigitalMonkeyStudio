@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explorá Uruguay · Uruguay Mnatural</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<script defer th:src="@{/js/app.js}">
+</script>
+</head>
+<body>
+<header th:replace="~{fragments :: header}">
+</header>
+<main>
+<div class="notice success" th:if="${success}" th:text="${success}">
+</div>
+<section class="hero">
+<p class="eyebrow">TU PRÓXIMA EXPERIENCIA</p>
+<h1>Uruguay se vive.<br>Encontrá tu próxima salida.</h1>
+<p>Naturaleza, sabores e historias para descubrir cerca de vos.</p>
+<a class="button light" href="#catalog">Explorar actividades ↓</a>
+</section>
+<section id="catalog">
+<div class="section-title">
+<h2>Elegí cómo disfrutarlo</h2>
+<span th:text="|${result.totalElements} actividades|">
+</span>
+</div>
+<form th:action="@{/}" method="get" class="filters location-group">
+<label>Buscar<input name="q" placeholder="Actividad o emprendimiento" th:value="${param.q}">
+</label>
+<label>Departamento<select name="departmentId" class="department">
+<option value="">Todos</option>
+<option th:each="d:${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${param.departmentId != null and param.departmentId[0] == d.id.toString()}">
+</option>
+</select>
+</label>
+<label>Localidad<select name="localityId" class="locality">
+<option value="">Todas</option>
+<option th:each="l:${localities}" th:value="${l.id}" th:attr="data-department=${l.department_id}" th:text="${l.name}" th:selected="${param.localityId != null and param.localityId[0] == l.id.toString()}">
+</option>
+</select>
+</label>
+<label>Fecha<input type="date" name="date" th:value="${param.date}">
+</label>
+<label>Desde UYU<input type="number" min="0" step="0.01" name="min" th:value="${param.min}">
+</label>
+<label>Hasta UYU<input type="number" min="0" step="0.01" name="max" th:value="${param.max}">
+</label>
+<label>Categoría<select name="categoryIds" multiple>
+<option th:each="c:${categories}" th:if="${c.active}" th:value="${c.id}" th:text="${c.name}" th:selected="${param.categoryIds != null and #arrays.contains(param.categoryIds,c.id.toString())}">
+</option>
+</select>
+</label>
+<div class="actions">
+<button>Buscar</button>
+<a th:href="@{/}">Limpiar filtros</a>
+</div>
+</form>
+<div class="empty" th:if="${#lists.isEmpty(result.content)}">No encontramos actividades con esos filtros.</div>
+<div class="cards">
+<article class="card" th:each="a:${result.content}">
+<div class="landscape">
+<span th:text="${a.department_name}">
+</span>
+</div>
+<div class="card-body">
+<p class="muted" th:text="${a.commercial_name}">
+</p>
+<h3>
+<a th:href="@{/activities/{id}(id=${a.id})}" th:text="${a.name}">
+</a>
+</h3>
+<p class="excerpt" th:text="${a.description}">
+</p>
+<div class="meta">
+<span th:text="|${a.duration_minutes} min|">
+</span>
+<span th:text="|★ ${@fmt.rating(a.average_rating)} (${a.review_count})|">
+</span>
+</div>
+<div class="card-bottom">
+<strong th:text="|UYU ${a.unit_price}|">
+</strong>
+<a th:href="@{/activities/{id}(id=${a.id})}">Ver experiencia →</a>
+</div>
+</div>
+</article>
+</div>
+<div th:replace="~{fragments :: pagination(${result})}">
+</div>
+</section>
+</main>
+<footer th:replace="~{fragments :: footer}">
+</footer>
+</body>
+</html>

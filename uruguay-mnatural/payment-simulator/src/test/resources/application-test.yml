@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:payments;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ''
+simulator:
+  api-key: test-api-key
+  webhook-token: test-webhook
+  public-url: http://localhost:8081
+  return-url: http://localhost:8080
+  callback-url: http://localhost:8080/api/v1/payment-events
