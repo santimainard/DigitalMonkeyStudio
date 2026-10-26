@@ -30,7 +30,7 @@
 <div class="row">
 <label>Correo comercial<input name="contactEmail" type="email" required th:value="${venture.contact_email}">
 </label>
-<label>Teléfono<input name="phone" required maxlength="40" th:value="${venture.phone}">
+<label>Teléfono<input name="phone" type="tel" inputmode="tel" required maxlength="40" th:value="${venture.phone}">
 </label>
 </div>
 <div class="row location-group">

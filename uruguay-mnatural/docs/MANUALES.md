@@ -6,7 +6,7 @@ Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y dev
 
 - Al entrar se exige iniciar sesión o crear cuenta. El login lleva siempre a Mi espacio. Solo turistas acceden a Explorar (`/explore`) y al detalle de actividades; prestadores y administradores tienen sus paneles. La API de consulta externa conserva sus rutas públicas.
 - El prestador pendiente o denegado solo ve su solicitud y puede salir. No puede crear/editar actividades, fechas, contacto ni consultar reservas, incluso enviando rutas directamente. El administrador habilita el emprendimiento, no cada actividad.
-- La denegación exige motivo (hasta 2.000 caracteres) y una decisión explícita sobre permitir otra solicitud. Si se permite, el prestador puede volver a pedir habilitación y queda pendiente; no obtiene permisos hasta nueva aprobación. No se permite denegar un emprendimiento ya verificado mediante este flujo.
+- La denegación exige motivo (hasta 2.000 caracteres) y es definitiva para ese emprendimiento. El prestador conserva acceso al motivo, pero no puede volver a solicitar verificación. No se permite denegar un emprendimiento ya verificado mediante este flujo.
 - El prestador define por actividad la anticipación para reembolso total (minutos, de 0 a 525.600) y el porcentaje a devolver fuera de ese plazo (entero de 0 a 100). En el límite exacto de anticipación corresponde el 100 %. El porcentaje es **lo que se devuelve**, no la penalización.
 - La reserva conserva una copia de esa política y su inicio original. Ediciones posteriores no alteran compras existentes. Actividades y reservas anteriores a esta actualización reciben la política sin penalización: 100 % antes del inicio; el prestador puede cambiarla para nuevas reservas.
 - El turista cancela su propia reserva; el prestador cancela una instancia completa de su actividad y devuelve el 100 % a las reservas vigentes pagadas. Las solicitudes pendientes de cancelación del turista se elevan al 100 % si el prestador cancela la instancia antes de finalizar su conciliación. Las reservas ya canceladas no se reabren.
@@ -58,6 +58,14 @@ La hora de fin puede demostrarse creando una actividad de duración 1 minuto con
 
 **Turista:** en Mi espacio, abrí el detalle de tu reserva. Antes de confirmar, el botón informa el porcentaje que corresponde ahora. Después muestra si la cancelación está pendiente o completada, el importe devuelto y el retenido cuando hubo un pago. Actualizar cancelación reintenta una comprobación pendiente. No se puede reseñar una reserva cancelada.
 
-**Administrador:** en Mi espacio, abrí un emprendimiento pendiente. Podés aprobarlo o escribir el motivo y usar **Denegar emprendimiento**. Marcá Permitir una nueva solicitud únicamente si querés habilitar ese reintento. El prestador verá el motivo y, si corresponde, el botón para volver a solicitar aprobación.
+**Administrador:** en Mi espacio, abrí un emprendimiento pendiente. Podés aprobarlo o escribir el motivo y usar **Denegar emprendimiento**. El prestador verá el motivo; la denegación es definitiva y no admite una nueva solicitud.
 
 La política de reembolso se expresa en minutos; por ejemplo, 1440 significa un día. Con anticipación 1440 y porcentaje 25, una cancelación exactamente un día antes devuelve el 100 %; más tarde, pero antes de comenzar, devuelve el 25 %. Si el total es UYU 1200, son UYU 300 de devolución y UYU 900 retenidos.
+
+## Validaciones al crear una cuenta
+
+Los errores aparecen en rojo junto a cada campo al escribir, al salir del campo o al intentar enviar. Los datos también se verifican en el servidor. Nombre y apellido admiten letras con tildes, espacios, apóstrofes, puntos y guiones; no números. Los correos requieren @ y un dominio completo. La contraseña debe tener al menos 8 caracteres, hasta 72 bytes UTF-8 y coincidir exactamente con su repetición.
+
+El teléfono admite entre 6 y 15 dígitos, con + inicial y separadores habituales (espacios, paréntesis y guiones), sin letras. No se impone un prefijo uruguayo porque pueden registrarse prestadores con contactos internacionales. El documento conserva su formato de texto para admitir documentos extranjeros.
+
+RUT y razón social se muestran y exigen únicamente al seleccionar Persona jurídica; el RUT requiere 12 dígitos. Al cambiar a Persona física se ocultan y se excluyen del envío y del almacenamiento. Departamento y localidad deben seleccionarse y corresponder entre sí.

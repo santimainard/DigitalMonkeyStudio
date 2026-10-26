@@ -166,7 +166,7 @@ public class ApiController {
   @PatchMapping("/admin/ventures/{id}/verification")
   Object approve(@PathVariable long id, @RequestBody Map<String, String> body) {
     if ("DENIED".equals(body.get("status"))) {
-      accounts.deny(id, body.get("reason"), "true".equals(body.get("allowRetry")));
+      accounts.deny(id, body.get("reason"));
       return Map.of("id", id, "status", "DENIED");
     }
     if (!"VERIFIED".equals(body.get("status")))

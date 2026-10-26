@@ -2,5 +2,4 @@
 <header th:replace="~{fragments :: header}"></header><main><h1>Mi espacio</h1><h2 th:text="${venture.commercial_name}"></h2>
 <p th:if="${venture.denial_reason == null}">Tu solicitud está pendiente de habilitación. Las funciones del prestador estarán disponibles cuando un administrador apruebe tu emprendimiento.</p>
 <section th:if="${venture.denial_reason != null}"><h2>Solicitud denegada</h2><p th:text="${venture.denial_reason}"></p>
-<form th:if="${venture.allow_reapply}" th:action="@{/provider/reapply}" method="post"><button>Volver a solicitar habilitación</button></form>
-<p th:unless="${venture.allow_reapply}">El administrador no habilitó una nueva solicitud.</p></section></main></body></html>
+<p>La denegación es definitiva. No se puede volver a solicitar la verificación de este emprendimiento.</p></section></main></body></html>

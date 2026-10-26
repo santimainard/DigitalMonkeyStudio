@@ -20,66 +20,82 @@
 <p>
 <a th:href="@{/register(role='TOURIST')}">Soy turista</a> · <a th:href="@{/register(role='PROVIDER')}">Soy prestador</a>
 </p>
-<form th:action="@{/register}" method="post" th:object="${form}">
-<div class="notice" th:if="${#fields.hasAnyErrors()}">
+<form th:action="@{/register}" method="post" th:object="${form}" data-registration>
+<div class="notice form-errors" role="alert" th:if="${#fields.hasAnyErrors()}">
 <p th:each="err:${#fields.allErrors()}" th:text="${err}">
 </p>
 </div>
 <input type="hidden" name="role" th:value="${form.role}">
 <div class="row">
-<label>Nombre<input name="firstName" maxlength="80" required th:value="${form.firstName}">
+<label>Nombre<input id="firstName" aria-describedby="firstName-error" th:attr="aria-invalid=${#fields.hasErrors('firstName')}" name="firstName" maxlength="80" required th:value="${form.firstName}">
+<small class="field-error" id="firstName-error" aria-live="polite" th:text="${#fields.hasErrors('firstName') ? #fields.errors('firstName')[0] : ''}"></small>
 </label>
-<label>Apellido<input name="lastName" maxlength="80" required th:value="${form.lastName}">
+<label>Apellido<input id="lastName" aria-describedby="lastName-error" th:attr="aria-invalid=${#fields.hasErrors('lastName')}" name="lastName" maxlength="80" required th:value="${form.lastName}">
+<small class="field-error" id="lastName-error" aria-live="polite" th:text="${#fields.hasErrors('lastName') ? #fields.errors('lastName')[0] : ''}"></small>
 </label>
 </div>
-<label>Correo de acceso<input name="email" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Ingresá un correo como nombre@dominio.com." maxlength="254" required th:value="${form.email}">
+<label>Correo de acceso<input id="email" aria-describedby="email-error" th:attr="aria-invalid=${#fields.hasErrors('email')}" name="email" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Ingresá un correo como nombre@dominio.com." maxlength="254" required th:value="${form.email}">
+<small class="field-error" id="email-error" aria-live="polite" th:text="${#fields.hasErrors('email') ? #fields.errors('email')[0] : ''}"></small>
 </label>
-<label>Documento del titular o responsable<input name="document" maxlength="40" th:required="${form.role == 'TOURIST'}" th:value="${form.document}">
+<label>Documento del titular o responsable<input id="document" aria-describedby="document-error" th:attr="aria-invalid=${#fields.hasErrors('document')}" name="document" maxlength="40" th:required="${form.role == 'TOURIST' or form.legalType == 'PHYSICAL'}" th:value="${form.document}">
+<small class="field-error" id="document-error" aria-live="polite" th:text="${#fields.hasErrors('document') ? #fields.errors('document')[0] : ''}"></small>
 </label>
-<label>Contraseña<input name="password" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
+<label>Contraseña<input id="password" aria-describedby="password-error" th:attr="aria-invalid=${#fields.hasErrors('password')}" name="password" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
 <small>Mínimo 8 caracteres.</small>
+<small class="field-error" id="password-error" aria-live="polite" th:text="${#fields.hasErrors('password') ? #fields.errors('password')[0] : ''}"></small>
 </label>
-<label>Repetir contraseña<input name="passwordConfirmation" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
+<label>Repetir contraseña<input id="passwordConfirmation" aria-describedby="passwordConfirmation-error" th:attr="aria-invalid=${#fields.hasErrors('passwordConfirmation')}" name="passwordConfirmation" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
 <small>Escribí nuevamente la misma contraseña.</small>
+<small class="field-error" id="passwordConfirmation-error" aria-live="polite" th:text="${#fields.hasErrors('passwordConfirmation') ? #fields.errors('passwordConfirmation')[0] : ''}"></small>
 </label>
 <th:block th:if="${form.role == 'PROVIDER'}">
 <h2>Datos del emprendimiento</h2>
-<label>Personería<select name="legalType">
+<label>Personería<select id="legalType" aria-describedby="legalType-error" th:attr="aria-invalid=${#fields.hasErrors('legalType')}" name="legalType" required>
 <option value="PHYSICAL" th:selected="${form.legalType == 'PHYSICAL'}">Persona física</option>
 <option value="LEGAL" th:selected="${form.legalType == 'LEGAL'}">Persona jurídica</option>
 </select>
+<small class="field-error" id="legalType-error" aria-live="polite" th:text="${#fields.hasErrors('legalType') ? #fields.errors('legalType')[0] : ''}"></small>
 </label>
-<label>Nombre comercial<input name="commercialName" maxlength="150" required th:value="${form.commercialName}">
+<label>Nombre comercial<input id="commercialName" aria-describedby="commercialName-error" th:attr="aria-invalid=${#fields.hasErrors('commercialName')}" name="commercialName" maxlength="150" required th:value="${form.commercialName}">
+<small class="field-error" id="commercialName-error" aria-live="polite" th:text="${#fields.hasErrors('commercialName') ? #fields.errors('commercialName')[0] : ''}"></small>
 </label>
-<div class="row">
-<label>Razón social (persona jurídica)<input name="legalName" maxlength="200" th:value="${form.legalName}">
+<div class="row" data-legal-fields th:hidden="${form.legalType != 'LEGAL'}">
+<label>Razón social (persona jurídica)<input id="legalName" aria-describedby="legalName-error" th:attr="aria-invalid=${#fields.hasErrors('legalName')}" name="legalName" maxlength="200" th:required="${form.legalType == 'LEGAL'}" th:disabled="${form.legalType != 'LEGAL'}" th:value="${form.legalName}">
+<small class="field-error" id="legalName-error" aria-live="polite" th:text="${#fields.hasErrors('legalName') ? #fields.errors('legalName')[0] : ''}"></small>
 </label>
-<label>RUT (persona jurídica)<input name="taxId" inputmode="numeric" pattern="[0-9]{12}" minlength="12" maxlength="12" title="Ingresá exactamente 12 dígitos, sin letras ni separadores." th:required="${form.legalType == 'LEGAL'}" th:value="${form.taxId}">
+<label>RUT (persona jurídica)<input id="taxId" aria-describedby="taxId-error" th:attr="aria-invalid=${#fields.hasErrors('taxId')}" name="taxId" th:disabled="${form.legalType != 'LEGAL'}" inputmode="numeric" pattern="[0-9]{12}" minlength="12" maxlength="12" title="Ingresá exactamente 12 dígitos, sin letras ni separadores." th:required="${form.legalType == 'LEGAL'}" th:value="${form.taxId}">
 <small>12 dígitos, sin letras ni separadores.</small>
+<small class="field-error" id="taxId-error" aria-live="polite" th:text="${#fields.hasErrors('taxId') ? #fields.errors('taxId')[0] : ''}"></small>
 </label>
 </div>
-<label>Correo comercial público<input name="contactEmail" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Ingresá un correo como nombre@dominio.com." maxlength="254" required th:value="${form.contactEmail}">
+<label>Correo comercial público<input id="contactEmail" aria-describedby="contactEmail-error" th:attr="aria-invalid=${#fields.hasErrors('contactEmail')}" name="contactEmail" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Ingresá un correo como nombre@dominio.com." maxlength="254" required th:value="${form.contactEmail}">
+<small class="field-error" id="contactEmail-error" aria-live="polite" th:text="${#fields.hasErrors('contactEmail') ? #fields.errors('contactEmail')[0] : ''}"></small>
 </label>
-<label>Teléfono comercial público<input name="phone" maxlength="40" required th:value="${form.phone}">
+<label>Teléfono comercial público<input id="phone" aria-describedby="phone-error" th:attr="aria-invalid=${#fields.hasErrors('phone')}" name="phone" type="tel" inputmode="tel" maxlength="40" autocomplete="tel" required th:value="${form.phone}">
+<small class="field-error" id="phone-error" aria-live="polite" th:text="${#fields.hasErrors('phone') ? #fields.errors('phone')[0] : ''}"></small>
 </label>
 <div class="row location-group">
-<label>Departamento<select name="departmentId" class="department" required>
+<label>Departamento<select id="departmentId" aria-describedby="departmentId-error" th:attr="aria-invalid=${#fields.hasErrors('departmentId')}" name="departmentId" class="department" required>
 <option value="">Seleccioná</option>
 <option th:each="d:${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${form.departmentId == d.id}">
 </option>
 </select>
+<small class="field-error" id="departmentId-error" aria-live="polite" th:text="${#fields.hasErrors('departmentId') ? #fields.errors('departmentId')[0] : ''}"></small>
 </label>
-<label>Localidad<select name="localityId" class="locality" required>
+<label>Localidad<select id="localityId" aria-describedby="localityId-error" th:attr="aria-invalid=${#fields.hasErrors('localityId')}" name="localityId" class="locality" required>
 <option value="">Seleccioná</option>
 <option th:each="l:${localities}" th:value="${l.id}" th:attr="data-department=${l.department_id}" th:text="${l.name}" th:selected="${form.localityId == l.id}">
 </option>
 </select>
+<small class="field-error" id="localityId-error" aria-live="polite" th:text="${#fields.hasErrors('localityId') ? #fields.errors('localityId')[0] : ''}"></small>
 </label>
 </div>
-<label>Dirección o referencia<input name="locationDescription" maxlength="300" required th:value="${form.locationDescription}">
+<label>Dirección o referencia<input id="locationDescription" aria-describedby="locationDescription-error" th:attr="aria-invalid=${#fields.hasErrors('locationDescription')}" name="locationDescription" maxlength="300" required th:value="${form.locationDescription}">
+<small class="field-error" id="locationDescription-error" aria-live="polite" th:text="${#fields.hasErrors('locationDescription') ? #fields.errors('locationDescription')[0] : ''}"></small>
 </label>
-<label>Descripción<textarea name="description" maxlength="5000" required th:text="${form.description}">
+<label>Descripción<textarea id="description" aria-describedby="description-error" th:attr="aria-invalid=${#fields.hasErrors('description')}" name="description" maxlength="5000" required th:text="${form.description}">
 </textarea>
+<small class="field-error" id="description-error" aria-live="polite" th:text="${#fields.hasErrors('description') ? #fields.errors('description')[0] : ''}"></small>
 </label>
 <p class="muted">Tu emprendimiento quedará pendiente de aprobación. Las funciones del prestador se habilitarán cuando un administrador lo apruebe.</p>
 </th:block>

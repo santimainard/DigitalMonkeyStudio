@@ -304,11 +304,7 @@ paths:
                 reason:
                   type: string
                   maxLength: 2000
-                  description: Motivo obligatorio cuando status es DENIED.
-                allowRetry:
-                  type: boolean
-                  default: false
-                  description: Permite al prestador presentar una nueva solicitud después de la denegación.
+                  description: Motivo obligatorio cuando status es DENIED. La denegación es definitiva.
               required:
               - status
       security:

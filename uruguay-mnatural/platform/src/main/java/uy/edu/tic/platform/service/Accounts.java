@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uy.edu.tic.platform.domain.BusinessException;
 import uy.edu.tic.platform.dto.Forms.Registration;
+import uy.edu.tic.platform.dto.RegistrationChecks;
 import uy.edu.tic.platform.repository.Database;
 
 @Service
@@ -52,7 +53,7 @@ public class Accounts {
   }
 
   @Transactional
-  public void deny(long ventureId, String reason, boolean allowRetry) {
+  public void deny(long ventureId, String reason) {
     role("ADMIN");
     var v = db.one("select * from venture where id=? for update", ventureId);
     if (!"PENDING".equals(v.get("verification_status")) || v.get("denial_reason") != null)
@@ -60,21 +61,11 @@ public class Accounts {
           "INVALID_INPUT", "Solo se puede denegar una solicitud pendiente.");
     db.update(
         "update venture set"
-            + " denial_reason=?,allow_reapply=?,reviewed_by=?,reviewed_at=current_timestamp where"
+            + " denial_reason=?,reviewed_by=?,reviewed_at=current_timestamp where"
             + " id=?",
         text(reason, 2000, "motivo de denegación"),
-        allowRetry,
         id(),
         ventureId);
-  }
-
-  @Transactional
-  public void reapply() {
-    role("PROVIDER");
-    var v = db.one("select * from venture where owner_id=? for update", id());
-    if (v.get("denial_reason") == null || !Boolean.TRUE.equals(v.get("allow_reapply")))
-      throw new AccessDeniedException("El administrador no permitió una nueva solicitud.");
-    db.update("update venture set denial_reason=null,allow_reapply=false where id=?", v.get("id"));
   }
 
   public static String text(String value, int max, String label) {
@@ -101,6 +92,9 @@ public class Accounts {
 
   @Transactional
   public long register(Registration f) {
+    var errors = RegistrationChecks.errors(f);
+    if (!errors.isEmpty())
+      throw new BusinessException("INVALID_INPUT", errors.values().iterator().next());
     if (!Set.of("TOURIST", "PROVIDER").contains(f.role))
       throw new BusinessException("INVALID_INPUT", "Rol inválido.");
     String email = email(f.email, "correo de acceso").toLowerCase(Locale.ROOT);
@@ -144,8 +138,8 @@ public class Accounts {
           userId,
           f.legalType,
           text(f.commercialName, 150, "nombre comercial"),
-          f.legalName,
-          f.taxId,
+          "LEGAL".equals(f.legalType) ? f.legalName.strip() : null,
+          "LEGAL".equals(f.legalType) ? f.taxId : null,
           contact,
           text(f.phone, 40, "teléfono"),
           f.departmentId,
@@ -162,7 +156,7 @@ public class Accounts {
     var v = db.one("select * from venture where id=? for update", id);
     if (v.get("denial_reason") != null)
       throw new BusinessException(
-          "INVALID_INPUT", "El prestador debe volver a solicitar habilitación antes de aprobar.");
+          "INVALID_INPUT", "El emprendimiento fue denegado y no admite una nueva solicitud.");
     db.update(
         "update venture set"
             + " verification_status='VERIFIED',verified_by=?,verified_at=current_timestamp where"
@@ -178,6 +172,9 @@ public class Accounts {
     verifiedProvider();
     location(dep, loc);
     email = email(email, "correo comercial");
+    if (!RegistrationChecks.validPhone(phone))
+      throw new BusinessException(
+          "INVALID_INPUT", "Teléfono inválido: ingresá entre 6 y 15 dígitos, sin letras.");
     db.update(
         "update venture set"
             + " contact_email=?,phone=?,department_id=?,locality_id=?,location_description=?,description=?"
