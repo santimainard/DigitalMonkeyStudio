@@ -39,7 +39,10 @@ public class Errors {
     if (e instanceof BusinessException b) {
       code = b.code;
       message = b.getMessage();
-      status = Set.of("INVALID_INPUT", "INVALID_PAYMENT").contains(code) ? 400 : 409;
+      status =
+          "PAYMENT_SERVICE_UNAVAILABLE".equals(code)
+              ? 503
+              : (Set.of("INVALID_INPUT", "INVALID_PAYMENT").contains(code) ? 400 : 409);
     } else if (e instanceof NoSuchElementException) {
       status = 404;
       code = "NOT_FOUND";
@@ -66,6 +69,7 @@ public class Errors {
                           Objects.toString(f.getDefaultMessage(), "Valor inválido"))));
     String correlation = UUID.randomUUID().toString();
     response.setStatus(status);
+    response.setCharacterEncoding("UTF-8");
     if (request.getRequestURI().startsWith("/api/")) {
       response.setContentType("application/json");
       json.writeValue(

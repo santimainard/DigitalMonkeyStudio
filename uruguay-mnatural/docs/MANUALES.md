@@ -22,7 +22,7 @@ Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y dev
 2. Abrí una actividad para consultar descripción, requisitos, equipamiento, opiniones y próximas instancias.
 3. Registrate como turista con nombre, apellido, documento, correo y contraseña. Repetí la contraseña en el campo de confirmación; ambas deben coincidir. Iniciá sesión.
 4. Elegí fecha y cantidad. Revisá inicio, fin y total. Al confirmar se comprueban cupos y plazo en el servidor.
-5. En el detalle de la reserva, abrí el simulador y elegí aprobar, rechazar o cancelar. No ingreses una tarjeta real.
+5. En Mis métodos de pago registrá una tarjeta ficticia del manual de pagos. En el detalle de la reserva, seleccioná un método propio y presioná PAGAR. El resultado lo determina automáticamente el servicio externo; no ingreses tarjetas reales.
 6. Volvé a tu reserva. Si aún está pendiente, usá Actualizar estado; también se consulta automáticamente cada 30 segundos desde el servidor.
 7. Una reserva confirmada tiene código y constancia imprimible. Si figura Comprobando pago, no crees otra para volver a pagar.
 8. Después de la hora de fin, con pago aprobado, el detalle habilita una reseña de 1 a 5 y comentario opcional. Solo se admite una por reserva.
@@ -44,13 +44,11 @@ Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y dev
 3. Administrá categorías y tipos de equipamiento. Podés crear, renombrar, desactivar, reactivar y eliminar. Una eliminación de un elemento utilizado lo desactiva para conservar relaciones.
 4. La administración no edita actividades en nombre de los prestadores.
 
-## Demostración de fallos
+## Probar resultados de pago
 
-En el checkout, seleccioná Callback duplicado o Sin callback inmediato. El segundo caso se resuelve por conciliación. El botón Reenviar callback duplicado comprueba que no se descuentan cupos otra vez.
+Consultá [PAGOS.md](PAGOS.md) para los números exclusivamente ficticios: terminación 4242 aprueba, 0005 rechaza y 0003 simula un método inhabilitado. Los números completos se ingresan ocultos al registrar y no reaparecen en las vistas. Un rechazo permite elegir otra tarjeta mientras la reserva siga vigente. Si el resultado está en verificación, usá Actualizar estado antes de iniciar cualquier otra compra.
 
-Para indisponibilidad o respuesta de creación perdida, enviá `POST http://localhost:8081/simulation/mode` con `X-API-Key` tomada de .env, Content-Type application/json y cuerpo `{"mode":"UNAVAILABLE"}` o `{"mode":"LOST_RESPONSE"}`. Luego creá una reserva. Restablecé `{"mode":"NORMAL"}` y actualizá el estado. `TIMEOUT` también demora la respuesta de creación 7 segundos, mayor que el timeout de 5 segundos de la app. El simulador conserva la operación creada; la conciliación busca por referencia antes de crear otra.
-
-La hora de fin puede demostrarse creando una actividad de duración 1 minuto con inicio cercano y anticipación cero; reservá antes del inicio, pagá y esperá el fin. No hace falta modificar estados manualmente en PostgreSQL.
+Las pruebas de indisponibilidad, timeout y respuestas perdidas se ejecutan con `scripts/http-smoke.py`; el control de fallos solo se habilita en ese entorno de prueba. La hora de fin puede demostrarse con una actividad de un minuto, reservando y pagando antes del inicio y esperando su finalización para reseñar.
 
 ## Cancelar y reembolsar
 

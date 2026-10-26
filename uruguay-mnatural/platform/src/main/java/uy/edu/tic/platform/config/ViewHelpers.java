@@ -53,8 +53,20 @@ public class ViewHelpers {
         : String.format(Locale.forLanguageTag("es-UY"), "%.1f", ((Number) n).doubleValue());
   }
 
+  public String paymentReason(Object reason) {
+    return switch (Objects.toString(reason, "")) {
+      case "CARD_EXPIRED" -> "La tarjeta de prueba está vencida. Elegí otro método.";
+      case "METHOD_DISABLED" -> "El método de prueba está inhabilitado. Elegí otro método.";
+      case "METHOD_NOT_FOUND" -> "No se encontró un método válido para este titular.";
+      default ->
+          "El pago fue rechazado. Podés elegir otro método mientras siga vigente la reserva.";
+    };
+  }
+
   public String state(Object state) {
     return switch (Objects.toString(state, "")) {
+      case "CREATED" -> "Sin iniciar";
+      case "REQUESTED" -> "Procesando pago";
       case "PENDING_PAYMENT" -> "Pendiente de pago";
       case "PAYMENT_UNCERTAIN", "UNKNOWN" -> "Comprobando pago";
       case "CONFIRMED" -> "Confirmada";

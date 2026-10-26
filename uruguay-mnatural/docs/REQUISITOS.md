@@ -126,64 +126,27 @@ Para cupo limitado, available = capacity - suma de participantCount de reservas 
 
 **RF-28.** La clave de idempotencia es única por turista. Repetir la misma clave y el mismo cuerpo devuelve la reserva existente; usar la misma clave con otro cuerpo devuelve 409. Se conserva aunque el intento haya fallado. Una clave nueva representa una nueva intención y puede crear otra reserva. Deshabilitar doble clic en la interfaz complementa esta garantía.
 
-**RF-29.** Creada la reserva, se solicita la operación de pago mediante HTTP con referencia única y expiresAt. Un fallo inequívoco previo a cualquier operación permite rechazar el intento. Timeout o respuesta ambigua ponen PAYMENT_UNCERTAIN y conservan cupos hasta reconciliar. Nunca se supone que timeout significa rechazo.
+**RF-29.** Crear la reserva no solicita pagos externos. Solo PAGAR persiste una intención con método propio y referencia idempotente del intento, y después envía HTTP con importe/plazo calculados en el backend. Un rechazo verificado permite otro método dentro del plazo; timeout o respuesta ambigua ponen PAYMENT_UNCERTAIN y conservan cupos hasta reconciliar, sin iniciar otro intento.
 
 **RF-30.** La confirmación exige un estado APPROVED verificado contra el servicio de pagos y coincidencia de referencia, importe y moneda. La transición es atómica e idempotente. Al confirmar se genera código único y constancia consultable con actividad, instancia, titular, cantidad, precio, total y estado. Una redirección del navegador o un mensaje de éxito del cliente no confirma nada.
 
 **Aceptación:** con un solo lugar, dos solicitudes simultáneas de una persona no pueden quedar ambas aprobadas; repetir clave no duplica reserva ni pago; precio manipulado se ignora; un timeout no muestra Confirmada.
 
-## 8 Estados y conciliación del pago
+## 8 Estados, intentos y conciliación de pagos
 
-| Reserva | Significado y salida |
-| --- | --- |
-| PENDING_PAYMENT | Cupos retenidos; espera la decisión del servicio externo. Pasa a CONFIRMED, REJECTED, EXPIRED, PAYMENT_CANCELLED o PAYMENT_UNCERTAIN. |
-| PAYMENT_UNCERTAIN | Se desconoce el resultado remoto. Conserva cupos; consulta periódica determina la salida. No se puede reseñar ni se presenta como pagada. |
-| CONFIRMED | Pago APPROVED comprobado. Pasa a COMPLETED cuando now >= endsAtSnapshot. |
-| COMPLETED | Fecha y hora de fin alcanzadas con pago aprobado. Permite reseña; no acredita asistencia física. |
-| REJECTED | Pago rechazado comprobado; libera retención. Terminal. |
-| EXPIRED | El servicio confirma expiración sin pago; libera retención. Terminal. |
-| PAYMENT_CANCELLED | Cancelación del proceso de pago confirmada por el servicio; libera retención. Terminal. Puede representar una cancelación con devolución; el registro cancellation y el estado REFUNDED del pago distinguen el reembolso. |
+La reserva se crea PENDING_PAYMENT con retención de diez minutos y sin autorización externa. Cada acción explícita de PAGAR crea o recupera un PaymentAttempt con referencia propia. La plataforma solo admite métodos activos del dueño de la reserva; importe, moneda y referencia se construyen en el backend.
 
-El pago tiene estados CREATED, PENDING, APPROVED, REJECTED, CANCELLED y EXPIRED. La app puede registrar UNKNOWN localmente cuando no logra conocer el estado remoto. APPROVED, REJECTED, CANCELLED y EXPIRED son terminales y el simulador no permite cambiarlos. Una reserva completada conserva el pago APPROVED.
+APPROVED confirma y genera código; REJECTED conserva el intento y permite otra tarjeta dentro del plazo original. REQUESTED/UNKNOWN dejan PAYMENT_UNCERTAIN y bloquean un segundo intento mientras se desconozca el resultado. Al vencer sin autorización iniciada se libera la reserva; ante incertidumbre se conserva hasta consultar el estado canónico. Una aprobación anterior al vencimiento, conocida tarde, se confirma sin duplicar cupos.
 
-**RF-31.** Un callback autenticado dispara verificación remota. Cada eventId se procesa una sola vez. Se ignoran repeticiones compatibles; un evento contradictorio se registra y se consulta el estado canónico, sin retroceder una reserva ya pagada. Las transiciones terminales no se sobrescriben por mensajes atrasados.
+Las cancelaciones y devoluciones conservan los porcentajes de los snapshots. Si cancela el prestador, se devuelve el 100 %. Una solicitud de cancelación por referencia impide también una autorización que aún esté en tránsito. Las operaciones terminales, los reembolsos y los eventos son idempotentes.
 
-**RF-32.** Un proceso periódico, propuesto cada 30 segundos, consulta pagos pendientes o inciertos. El simulador comparte expiresAt y garantiza que no aprueba después de esa expiración. La aplicación libera cupos solo tras consultar un estado remoto terminal sin aprobación o verificar el reembolso de una cancelación solicitada. Si el servicio permanece caído después de expiresAt, la reserva queda incierta y retiene lugares hasta recuperar comunicación. Esta elección sacrifica disponibilidad temporal para evitar sobreventa o cobros sin lugar.
+## 9 Contrato externo y métodos de pago
 
-**RF-33.** Si la respuesta se pierde después de aprobar el pago, la consulta posterior recupera APPROVED y confirma la reserva existente. Si el pago se aprueba antes de expiresAt pero el callback llega tarde, se confirma igualmente: los cupos seguían comprometidos. Una operación remota nunca se crea de nuevo con otra referencia por un reintento automático.
+El simulador es una API REST exclusivamente consumida por el backend, autenticada con X-API-Key. Tokeniza una lista cerrada de tarjetas ficticias y autoriza automáticamente. El turista no puede indicar el resultado, abrir un checkout externo ni acceder a rutas de decisión.
 
-Al alcanzarse el fin de la instancia, una tarea actualiza reservas confirmadas a COMPLETED. Consultar historial o intentar reseñar también debe resolver esta condición para no depender de que la tarea haya ejecutado. Si una aprobación tardíamente conocida corresponde a una actividad ya terminada, puede pasar directamente a COMPLETED.
+El formulario de método solicita titular, número ficticio, vencimiento y CVV. El número y CVV se usan únicamente en el cuerpo POST de registro y no se almacenan en PostgreSQL, logs o sesiones ni se vuelven a mostrar. platform conserva un token, marca, últimos cuatro dígitos y vencimiento, siempre asociados al turista. Desactivar conserva historial y bloquea nuevos intentos.
 
-## 9 Contrato del servicio externo simulado
-
-El simulador es una aplicación o proceso separado, accesible por HTTP y configurado con payment.base-url. Debe poder ejecutarse junto con la aplicación y PostgreSQL; no basta con una clase que siempre devuelve éxito. No recibe tarjetas ni cobra dinero real. Su pantalla muestra importe y referencia y permite elegir resultados de prueba.
-
-| Método y ruta del simulador | Contrato |
-| --- | --- |
-| POST /payments | Cabecera X-API-Key; Idempotency-Key igual a merchantReference. Cuerpo: merchantReference, amount decimal, currency, expiresAt, callbackUrl. Devuelve paymentId, status, checkoutUrl y expiresAt. |
-| GET /payments/{paymentId} | X-API-Key. Devuelve referencia, importe, moneda, estado, approvedAt si aplica y expiresAt. Es la fuente canónica para confirmar. |
-| GET /payments/by-reference/{merchantReference} | Recupera una creación cuya respuesta se perdió. 404 indica que no existe operación con esa referencia. |
-| POST /payments/{paymentId}/decision | Solo interfaz de pruebas del simulador. action es APPROVE, REJECT o CANCEL. Requiere operación pendiente y ahora anterior a expiresAt. |
-
-**RI-01.** La simulación permite aprobación, rechazo, cancelación, timeout, indisponibilidad, creación con respuesta perdida y callback duplicado o retrasado. POST /payments es idempotente: misma referencia y datos devuelven la misma operación; datos distintos producen 409. La expiración se aplica también al consultar, aunque una tarea no haya ejecutado.
-
-**RI-02.** El simulador emite POST hacia /api/v1/payment-events con eventId, paymentId, merchantReference y status. Se autentica mediante un secreto exclusivo en X-Webhook-Token. Esta ruta no usa la sesión del turista ni CSRF, pero sí valida el secreto. La aplicación consulta GET para verificar el evento antes de confirmar. El callback no contiene datos sensibles de tarjetas.
-
-**RI-03.** El cliente HTTP usa timeout de conexión y lectura configurables; valores propuestos de 2 y 5 segundos. Reintentos automáticos se limitan a consultas y creaciones idempotentes con la misma referencia. Claves, URL y secretos se cargan desde variables de entorno y perfiles. Se registran identificadores de correlación y fallos sin contraseñas ni secretos.
-
-**Ejemplo de creación:**
-
-```json
-{"merchantReference":"reservation-123","amount":2400.00,"currency":"UYU","expiresAt":"2026-11-10T15:10:00Z","callbackUrl":"http://app:8080/api/v1/payment-events"}
-```
-
-**Ejemplo de respuesta:**
-
-```json
-{"paymentId":"pay-123","status":"PENDING","checkoutUrl":"http://payments:8081/checkout/pay-123","expiresAt":"2026-11-10T15:10:00Z"}
-```
-
-El regreso al portal lleva solo un identificador; la pantalla consulta el estado verificado. Nunca se interpreta un parámetro success=true como evidencia del pago.
+El contrato detallado, estados, números ficticios y controles de prueba están en [PAGOS.md](PAGOS.md), que forma parte de esta especificación. Las rutas de platform están en OpenAPI. Los requisitos de integración son tokenización, autorización explícita, consulta canónica, idempotencia por intento, conciliación, cancelación/reembolso por referencia y callbacks autenticados. Los fallos se simulan únicamente con un perfil interno explícito, sin permitir elegir aprobación/rechazo desde el frontend.
 
 ## 10 Historial reseñas y reservas del prestador
 
@@ -212,7 +175,7 @@ Las rutas se versionan bajo /api/v1 y producen JSON. Los listados públicos no e
 | GET /api/v1/activities/search | Público. q obligatorio, de 1 a 100 caracteres tras recortar. Devuelve actividades públicas que coinciden por palabra clave, paginadas. |
 | GET /api/v1/activities/{id} | Público. Ficha con categorías, equipo, reseñas resumidas y próximas instancias. |
 | POST /api/v1/reservations | TOURIST. instanceId, participantCount e Idempotency-Key. Crea o recupera intento conforme a RF-26 a RF-29. |
-| GET /api/v1/reservations/{id} | TOURIST propietario. Estado, importe y checkoutUrl si está pendiente. |
+| GET /api/v1/reservations/{id} | TOURIST propietario. Estado, importe, posibilidad de pagar y metadatos de los intentos. |
 | POST /api/v1/reservations/{id}/reviews | TOURIST propietario. rating y comment opcional; aplica RF-35. |
 | POST /api/v1/payment-events | Servicio externo autenticado por secreto. Recibe evento y verifica el estado canónico. |
 
@@ -226,7 +189,7 @@ Las rutas se versionan bajo /api/v1 y producen JSON. Los listados públicos no e
 
 **API-02.** DTO públicos usan nombres en inglés. VentureSummary contiene id, commercialName, description, verificationStatus, contactEmail, phone, departmentId, departmentName, localityId, localityName y locationDescription. El contacto es el comercial declarado para publicación, nunca el de la cuenta del propietario. ActivitySummary contiene id, name, description, unitPrice, currency, durationMinutes, ventureId, ventureName, ubicación, categories, averageRating y reviewCount. InstanceSummary contiene id, activityId, startsAt, endsAt, capacity, availableCapacity, bookingDeadline y bookable. capacity y availableCapacity nulos indican ilimitado.
 
-TopRatedItem contiene activityId, name, monthlyAverage, monthlyReviewCount y departmentId. ReservationDetail contiene id, code nullable, activityId, activityNameSnapshot, startsAtSnapshot, endsAtSnapshot, participantCount, unitPriceSnapshot, totalAmount, currency, status, paymentStatus, expiresAt, checkoutUrl nullable y canReview. Los recursos privados agregan solo los datos necesarios del titular.
+TopRatedItem contiene activityId, name, monthlyAverage, monthlyReviewCount y departmentId. ReservationDetail contiene id, code nullable, activityId, activityNameSnapshot, startsAtSnapshot, endsAtSnapshot, participantCount, unitPriceSnapshot, totalAmount, currency, status, paymentStatus, expiresAt, canPay, attempts y canReview. Los recursos privados agregan solo los datos necesarios del titular.
 
 **API-03.** Los estados HTTP son 200 consulta o actualización; 201 creación; 204 eliminación de catálogo no referenciado; 400 validación; 401 falta de autenticación; 403 falta de permiso; 404 recurso inexistente o no público; 409 conflicto de negocio; 502/503 integración fallida cuando el recurso no puede devolverse. Un intento guardado con resultado incierto puede devolver 201 y status PAYMENT_UNCERTAIN; la interfaz debe representarlo fielmente.
 
@@ -250,7 +213,9 @@ Los controladores Thymeleaf y REST delegan en los mismos servicios para que una 
 | ActivityCategory y EquipmentType | id, name único normalizado, active. ActivityCategoryLink asocia actividades y categorías sin duplicados. ActivityEquipment asocia tipo y modalidad PROVIDED o REQUIRED sin duplicados. |
 | ActivityInstance | id, activityId, startsAt y endsAt timestamptz, capacity nullable, active. Unicidad por activityId y startsAt. |
 | Reservation | id, touristId, instanceId, idempotencyKey, requestHash, participantCount, status, expiresAt, snapshots de nombre, ubicación, precio, moneda, duración, inicio, fin y anticipación, totalAmount, code único nullable, createdAt. |
-| Payment | id, reservationId único, merchantReference único, externalPaymentId único nullable, amount, currency, status, approvedAt, lastCheckedAt. Una operación por reserva; un nuevo intento de compra crea nueva reserva. |
+| PaymentMethod | ID, turista, token externo, marca, últimos cuatro dígitos, titular, vencimiento y activo. Sin PAN ni CVV. |
+| PaymentAttempt | ID, reserva, método, clave del envío, referencia propia, estado, importe, moneda, plazo, identificador remoto, motivo y fechas. |
+| Payment | id, reservationId único, merchantReference único, externalPaymentId único nullable, amount, currency, status, approvedAt, lastCheckedAt. Resumen del intento actual por reserva; los intentos y sus referencias se conservan en payment_attempt. |
 | PaymentEvent | eventId único, paymentId, receivedAt, processedAt, outcome. Conserva el control de duplicados. |
 | Review | id, reservationId único, rating, comment nullable, createdAt. Actividad y autor se obtienen desde la reserva; no se aceptan del cliente. |
 | Department y Locality | id y name; Locality referencia Department. Venture y Activity referencian ambos de manera consistente. |
@@ -275,7 +240,7 @@ Los controladores Thymeleaf y REST delegan en los mismos servicios para que una 
 
 **RNF-06.** Git versiona código y migraciones. README explica instalación, variables, arranque de los tres componentes, credenciales configurables de demostración, ejecución de pruebas y uso de API. Entregar manual de visitante/turista, prestador y administrador, además de OpenAPI y ejemplos de solicitudes.
 
-**Pantallas mínimas:** catálogo y filtros; detalle con instancias y reseñas; registro de turista; registro de prestador y emprendimiento; login; reserva y resumen; checkout simulado; resultado del pago; historial y constancia; formulario de reseña; panel del prestador con emprendimiento, actividades, cronograma y reservas; panel ADMIN con pendientes, detalle para aprobar y ABM de categorías/equipamiento.
+**Pantallas mínimas:** catálogo y filtros; detalle con instancias y reseñas; registro de turista; registro de prestador y emprendimiento; login; reserva y resumen; métodos de pago ficticios y botón PAGAR; resultado del pago; historial y constancia; formulario de reseña; panel del prestador con emprendimiento, actividades, cronograma y reservas; panel ADMIN con pendientes, detalle para aprobar y ABM de categorías/equipamiento.
 
 No se inventa un SLA de producción. Objetivo de verificación local propuesto: catálogo y detalle responden en menos de 2 segundos con 1.000 actividades de prueba y 10 solicitudes concurrentes, excluyendo demora del servicio externo; se documentan máquina y resultados.
 
@@ -321,7 +286,7 @@ Las pruebas unitarias cubren servicios y reglas de negocio con un reloj controla
 | T07 Total y precio congelado | 2 × 1.200 = 2.400 UYU; cambiar precio luego no cambia reserva ni pago. |
 | T08 Idempotencia | Repetición devuelve mismo id; cuerpo distinto con misma clave produce 409; simulador no duplica operación. |
 | T09 Pago aprobado | Solo consulta remota válida confirma; callback duplicado no duplica cupos ni constancia. |
-| T10 Rechazo y cancelación | Estado terminal comprobado libera retención; no genera constancia de pago. |
+| T10 Rechazo y cancelación | Rechazo permite otra tarjeta en plazo; cancelación verificada libera cupos y aplica devolución cuando hubo aprobación. |
 | T11 Timeout y respuesta perdida | Reserva incierta retiene lugares; reconciliación descubre aprobación o rechazo y resuelve una sola vez. |
 | T12 Expiración y evento tardío | Servicio caído mantiene retención; expiración confirmada libera; aprobación previa al vencimiento conocida tarde confirma. |
 | T13 Reinicio | Reservas y operaciones remotas persisten; proceso de conciliación continúa sin sobreventa. |
@@ -359,3 +324,5 @@ La aplicación puede implementarse con las decisiones de diseño aquí definidas
 También conviene confirmar con el docente que el servicio externo simulado satisface la integración evaluada y que la operación verificar emprendimiento de la API significa aprobar, como definió el equipo. El clima requiere decidir servicio y alcance antes de activar esa extensión. El diseño visual debe recibir la aceptación del cliente solicitada por la consigna.
 
 Estas validaciones distinguen decisiones del equipo de requisitos contractuales; no impiden construir y probar la versión definida en este documento.
+
+La refactorización de pagos sustituye la antigua restricción de una única operación remota por reserva. Deben comprobarse registro y pertenencia del método, aprobación automática, rechazo y reintento, vencimiento, cobros concurrentes, respuestas perdidas, cancelación/reembolso y ausencia de PAN/CVV en almacenamiento y respuestas. Se conservan las migraciones anteriores y se agregan platform V6 y simulator V3.

@@ -20,18 +20,21 @@ public class ReservationTransactions {
   private final Tourism tourism;
   private final Clock clock;
   private final long hold;
+  private final PaymentAttemptTransactions attempts;
 
   public ReservationTransactions(
       Database db,
       Accounts accounts,
       Tourism tourism,
       Clock clock,
-      @Value("${payment.hold-minutes:10}") long hold) {
+      @Value("${payment.hold-minutes:10}") long hold,
+      PaymentAttemptTransactions attempts) {
     this.db = db;
     this.accounts = accounts;
     this.tourism = tourism;
     this.clock = clock;
     this.hold = hold;
+    this.attempts = attempts;
   }
 
   @Transactional
@@ -100,72 +103,115 @@ public class ReservationTransactions {
   }
 
   @Transactional
-  public void uncertain(UUID id) {
-    db.update(
-        "update reservation set status='PAYMENT_UNCERTAIN' where id=? and status in"
-            + " ('PENDING_PAYMENT','PAYMENT_UNCERTAIN')",
-        id);
-    db.update(
-        "update payment set status='UNKNOWN',last_checked_at=? where reservation_id=? and status"
-            + " not in ('APPROVED','REJECTED','CANCELLED','EXPIRED')",
-        utc(clock.instant()),
-        id);
+  public void expire(UUID id) {
+    var r = attempts.lock(id);
+    if (Set.of("PENDING_PAYMENT", "PAYMENT_UNCERTAIN").contains(r.get("status").toString())
+        && !clock.instant().isBefore(instant(r.get("expires_at")))
+        && db.count(
+                "select count(*) from payment_attempt where reservation_id=? and status in"
+                    + " ('REQUESTED','UNKNOWN','PENDING','CREATED','APPROVED','REFUNDED')",
+                id)
+            == 0) {
+      db.update("update reservation set status='EXPIRED' where id=?", id);
+      db.update("update payment set status='EXPIRED' where reservation_id=?", id);
+    }
   }
 
   @Transactional
   public void apply(UUID id, RemotePayment remote, String eventId) {
-    var reference = db.one("select instance_id from reservation where id=?", id);
-    db.one("select id from activity_instance where id=? for update", reference.get("instance_id"));
-    var r = db.one("select * from reservation where id=? for update", id);
+    var r = attempts.lock(id);
     var p = db.one("select * from payment where reservation_id=?", id);
-    if (eventId != null
-        && db.count("select count(*) from payment_event where event_id=?", eventId) > 0) return;
-    if (!id.toString().equals(remote.merchantReference())
-        || !"UYU".equals(remote.currency())
+    var a =
+        db.one(
+            "select * from payment_attempt where reservation_id=? and merchant_reference=? for"
+                + " update",
+            id,
+            remote.merchantReference());
+    if (!"UYU".equals(remote.currency())
         || remote.amount() == null
         || ((BigDecimal) r.get("total_amount")).compareTo(remote.amount()) != 0
-        || !instant(r.get("expires_at")).equals(remote.expiresAt()))
+        || !instant(a.get("expires_at")).equals(remote.expiresAt())
+        || remote.paymentId() == null
+        || a.get("external_payment_id") != null
+            && !a.get("external_payment_id").equals(remote.paymentId()))
       throw new BusinessException(
           "INVALID_PAYMENT", "La referencia, moneda, plazo o importe no coinciden.");
-    if (p.get("external_payment_id") != null
-        && !p.get("external_payment_id").equals(remote.paymentId()))
-      throw new BusinessException("INVALID_PAYMENT", "Identificador de pago distinto.");
-    String current = r.get("status").toString();
-    if (!Set.of("PENDING_PAYMENT", "PAYMENT_UNCERTAIN").contains(current)) return;
-    String next =
-        switch (remote.status()) {
-          case "APPROVED" ->
-              !clock.instant().isBefore(instant(r.get("ends_at_snapshot")))
-                  ? "COMPLETED"
-                  : "CONFIRMED";
-          case "REJECTED" -> "REJECTED";
-          case "CANCELLED" -> "PAYMENT_CANCELLED";
-          case "EXPIRED" -> "EXPIRED";
-          case "PENDING", "CREATED" -> "PENDING_PAYMENT";
-          default -> throw new BusinessException("INVALID_PAYMENT", "Estado remoto desconocido.");
-        };
+    if (!Set.of("APPROVED", "REJECTED", "CANCELLED", "EXPIRED", "PENDING")
+        .contains(remote.status()))
+      throw new BusinessException("INVALID_PAYMENT", "Estado desconocido.");
     if ("APPROVED".equals(remote.status())
         && (remote.approvedAt() == null || !remote.approvedAt().isBefore(remote.expiresAt())))
       throw new BusinessException("INVALID_PAYMENT", "Aprobación fuera del plazo.");
-    String code = Set.of("CONFIRMED", "COMPLETED").contains(next) ? "UM-" + id.toString() : null;
-    db.update(
-        "update payment set"
-            + " external_payment_id=?,status=?,checkout_url=?,approved_at=?,last_checked_at=? where"
-            + " reservation_id=?",
-        remote.paymentId(),
-        remote.status(),
-        remote.checkoutUrl(),
-        remote.approvedAt() == null ? null : utc(remote.approvedAt()),
-        utc(clock.instant()),
-        id);
-    db.update("update reservation set status=?,code=? where id=?", next, code, id);
+    if (eventId != null
+        && db.count("select count(*) from payment_event where event_id=?", eventId) > 0) return;
+    if (Set.of("REQUESTED", "UNKNOWN", "PENDING", "CREATED").contains(a.get("status").toString())) {
+      if (!a.get("id").equals(p.get("current_attempt_id")))
+        throw new BusinessException("INVALID_PAYMENT", "El intento no está vigente.");
+      String reason =
+          Set.of(
+                      "CARD_DECLINED",
+                      "CARD_EXPIRED",
+                      "METHOD_DISABLED",
+                      "METHOD_NOT_FOUND",
+                      "ALREADY_PAID",
+                      "HOLD_EXPIRED")
+                  .contains(Objects.toString(remote.declineReason(), ""))
+              ? remote.declineReason()
+              : null;
+      db.update(
+          "update payment_attempt set"
+              + " external_payment_id=?,status=?,approved_at=?,last_checked_at=?,decline_reason=?,approved_reservation_id=?"
+              + " where id=?",
+          remote.paymentId(),
+          remote.status(),
+          remote.approvedAt() == null ? null : utc(remote.approvedAt()),
+          utc(clock.instant()),
+          reason,
+          "APPROVED".equals(remote.status()) ? id : null,
+          a.get("id"));
+      db.update(
+          "update payment set"
+              + " external_payment_id=?,status=?,approved_at=?,last_checked_at=?,checkout_url=null"
+              + " where reservation_id=?",
+          remote.paymentId(),
+          remote.status(),
+          remote.approvedAt() == null ? null : utc(remote.approvedAt()),
+          utc(clock.instant()),
+          id);
+      if (db.count("select count(*) from cancellation where reservation_id=?", id) == 0) {
+        String next =
+            switch (remote.status()) {
+              case "APPROVED" ->
+                  clock.instant().isBefore(instant(r.get("ends_at_snapshot")))
+                      ? "CONFIRMED"
+                      : "COMPLETED";
+              case "EXPIRED" -> "EXPIRED";
+              case "CANCELLED" ->
+                  clock.instant().isBefore(instant(r.get("expires_at")))
+                      ? "PAYMENT_CANCELLED"
+                      : "EXPIRED";
+              case "REJECTED" ->
+                  clock.instant().isBefore(instant(r.get("expires_at")))
+                      ? "PENDING_PAYMENT"
+                      : "EXPIRED";
+              default -> "PAYMENT_UNCERTAIN";
+            };
+        db.update(
+            "update reservation set status=?,code=? where id=?",
+            next,
+            Set.of("CONFIRMED", "COMPLETED").contains(next) ? "UM-" + id : r.get("code"),
+            id);
+      }
+    }
     if (eventId != null)
       db.update(
-          "insert into payment_event(event_id,payment_id,received_at,processed_at) values(?,?,?,?)",
+          "insert into payment_event(event_id,payment_id,received_at,processed_at,attempt_id)"
+              + " values(?,?,?,?,?)",
           eventId,
           remote.paymentId(),
           utc(clock.instant()),
-          utc(clock.instant()));
+          utc(clock.instant()),
+          a.get("id"));
   }
 
   @Transactional
@@ -182,7 +228,7 @@ public class ReservationTransactions {
     var r =
         db.one(
             "select r.*,p.status"
-                + " payment_status,p.checkout_url,u.first_name,u.last_name,u.email,u.document from"
+                + " payment_status,u.first_name,u.last_name,u.email,u.document from"
                 + " reservation r join payment p on p.reservation_id=r.id join app_user u on"
                 + " u.id=r.tourist_id where r.id=?",
             id);
@@ -190,6 +236,25 @@ public class ReservationTransactions {
       throw new AccessDeniedException("Reserva ajena.");
     var cancellation = db.optional("select * from cancellation where reservation_id=?", id);
     r.put("cancellation", cancellation.orElse(null));
+    r.put(
+        "attempts",
+        db.list(
+            "select"
+                + " a.id,a.method_id,a.status,a.amount,a.currency,a.created_at,a.approved_at,a.decline_reason,m.brand,m.last_four"
+                + " from payment_attempt a left join payment_method m on m.id=a.method_id where"
+                + " a.reservation_id=? order by a.created_at desc,a.id",
+            id));
+    r.put(
+        "can_pay",
+        "PENDING_PAYMENT".equals(r.get("status"))
+            && clock.instant().isBefore(instant(r.get("expires_at")))
+            && cancellation.isEmpty()
+            && db.count(
+                    "select count(*) from payment_attempt where reservation_id=? and status in"
+                        + " ('REQUESTED','UNKNOWN','CREATED','PENDING','APPROVED','REFUNDED')",
+                    id)
+                == 0);
+
     r.put(
         "can_cancel",
         clock.instant().isBefore(instant(r.get("starts_at_snapshot")))

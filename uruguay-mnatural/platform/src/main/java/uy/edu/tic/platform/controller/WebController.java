@@ -25,6 +25,7 @@ public class WebController {
   private final Payments payments;
   private final CancellationTransactions cancellations;
   private final WorkspaceSummary workspace;
+  private final PaymentMethods methods;
 
   public WebController(
       Database db,
@@ -33,7 +34,8 @@ public class WebController {
       ReservationTransactions reservations,
       Payments payments,
       CancellationTransactions cancellations,
-      WorkspaceSummary workspace) {
+      WorkspaceSummary workspace,
+      PaymentMethods methods) {
     this.db = db;
     this.accounts = accounts;
     this.tourism = tourism;
@@ -41,6 +43,7 @@ public class WebController {
     this.payments = payments;
     this.cancellations = cancellations;
     this.workspace = workspace;
+    this.methods = methods;
   }
 
   @InitBinder
@@ -171,7 +174,6 @@ public class WebController {
   String reserve(
       @RequestParam long instanceId, @RequestParam int participantCount, @RequestParam String key) {
     var id = reservations.reserve(instanceId, participantCount, key);
-    payments.synchronize(id);
     return "redirect:/tourist/reservations/" + id;
   }
 
@@ -212,8 +214,18 @@ public class WebController {
 
   @GetMapping("/tourist/reservations/{id}")
   String reservation(@PathVariable UUID id, Model m) {
+    reservations.detail(id);
+    reservations.expire(id);
     m.addAttribute("reservation", reservations.detail(id));
+    m.addAttribute("paymentMethods", methods.active());
+    m.addAttribute("paymentKey", UUID.randomUUID().toString());
     return "reservation";
+  }
+
+  @PostMapping("/tourist/reservations/{id}/pay")
+  String pay(@PathVariable UUID id, @RequestParam UUID methodId, @RequestParam String key) {
+    payments.pay(id, methodId, key);
+    return "redirect:/tourist/reservations/" + id;
   }
 
   @PostMapping("/tourist/reservations/{id}/refresh")

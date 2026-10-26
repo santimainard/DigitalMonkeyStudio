@@ -33,6 +33,14 @@ class PlatformIntegrationTest {
   @Autowired Tourism tourism;
   @Autowired ReservationTransactions tx;
   @Autowired CancellationTransactions cancellations;
+  @Autowired PaymentAttemptTransactions attempts;
+  @Autowired PaymentMethods methods;
+  @Autowired Payments payments;
+
+  @org.springframework.test.context.bean.override.mockito.MockitoBean
+  uy.edu.tic.platform.integration.PaymentClient client;
+
+  UUID methodId, declinedMethod, approvedToken, declinedToken;
   long activity, instance, tourist, provider;
   String touristEmail, providerEmail;
 
@@ -96,6 +104,50 @@ class PlatformIntegrationTest {
         false);
     instance = ((Number) tourism.instances(activity, false).get(0).get("id")).longValue();
     login(touristEmail);
+    methodId = UUID.randomUUID();
+    declinedMethod = UUID.randomUUID();
+    approvedToken = UUID.randomUUID();
+    declinedToken = UUID.randomUUID();
+    db.update(
+        "insert into"
+            + " payment_method(id,tourist_id,external_token,brand,last_four,holder,expiry_month,expiry_year)"
+            + " values(?,?,?,'Visa de prueba','4242','Titular de prueba',12,2099)",
+        methodId,
+        tourist,
+        approvedToken);
+    db.update(
+        "insert into"
+            + " payment_method(id,tourist_id,external_token,brand,last_four,holder,expiry_month,expiry_year)"
+            + " values(?,?,?,'Mastercard de prueba','0005','Titular de prueba',12,2099)",
+        declinedMethod,
+        tourist,
+        declinedToken);
+    org.mockito.Mockito.when(
+            client.authorize(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(
+            call -> {
+              assertFalse(
+                  org.springframework.transaction.support.TransactionSynchronizationManager
+                      .isActualTransactionActive());
+              String ref = call.getArgument(0);
+              boolean decline = declinedToken.equals(call.getArgument(3));
+              return new RemotePayment(
+                  "pay-" + ref,
+                  ref,
+                  call.getArgument(4),
+                  "UYU",
+                  decline ? "REJECTED" : "APPROVED",
+                  call.getArgument(6),
+                  decline ? null : Instant.now(),
+                  decline ? "CARD_DECLINED" : null);
+            });
   }
 
   @AfterEach
@@ -106,15 +158,22 @@ class PlatformIntegrationTest {
   RemotePayment remote(UUID id, String status) {
     var r = db.one("select * from reservation where id=?", id);
     var expiry = BookingRules.instant(r.get("expires_at"));
+    if (db.count("select count(*) from payment_attempt where reservation_id=?", id) == 0)
+      attempts.begin(id, methodId, "test-attempt");
+    var a =
+        db.one(
+            "select a.* from payment_attempt a join payment p on p.current_attempt_id=a.id where"
+                + " p.reservation_id=?",
+            id);
     return new RemotePayment(
         "pay-" + id,
-        id.toString(),
+        a.get("merchant_reference").toString(),
         (BigDecimal) r.get("total_amount"),
         "UYU",
         status,
         expiry,
         "APPROVED".equals(status) ? expiry.minusSeconds(5) : null,
-        "http://localhost/checkout/" + id);
+        null);
   }
 
   @Test
@@ -146,11 +205,15 @@ class PlatformIntegrationTest {
   }
 
   @Test
-  void unknownPaymentRetainsCapacityAndRejectReleases() {
+  void unknownAndRejectedPaymentRetainCapacityUntilCancellationOrExpiry() {
     UUID id = tx.reserve(instance, 2, "x");
-    tx.uncertain(id);
+    attempts.uncertain(attempts.begin(id, methodId, "test-attempt"));
     assertEquals(2, tourism.committed(instance));
     tx.apply(id, remote(id, "REJECTED"), null);
+    assertEquals("PENDING_PAYMENT", tx.detail(id).get("status"));
+    assertEquals(2, tourism.committed(instance));
+    cancellations.tourist(id);
+    cancellations.finishUnpaid(id);
     assertEquals(0, tourism.committed(instance));
     assertNotNull(tx.reserve(instance, 2, "y"));
   }
@@ -159,7 +222,7 @@ class PlatformIntegrationTest {
   void lateApprovalRetainsPriceAndCannotRegress() {
     UUID id = tx.reserve(instance, 1, "x");
     db.update("update activity set unit_price=9000 where id=?", activity);
-    tx.uncertain(id);
+    attempts.uncertain(attempts.begin(id, methodId, "test-attempt"));
     tx.apply(id, remote(id, "APPROVED"), null);
     tx.apply(id, remote(id, "REJECTED"), null);
     assertEquals(new BigDecimal("1200.00"), tx.detail(id).get("total_amount"));
@@ -304,9 +367,9 @@ class PlatformIntegrationTest {
                     p.status(),
                     p.expiresAt(),
                     p.approvedAt(),
-                    p.checkoutUrl()),
+                    p.declineReason()),
                 null));
-    assertEquals("PENDING_PAYMENT", tx.detail(id).get("status"));
+    assertEquals("PAYMENT_UNCERTAIN", tx.detail(id).get("status"));
   }
 
   @Test
@@ -385,7 +448,9 @@ class PlatformIntegrationTest {
     var result =
         new uy.edu.tic.platform.integration.PaymentClient.Settlement(
             "pay-" + id,
-            id.toString(),
+            db.one("select merchant_reference from payment_attempt where reservation_id=?", id)
+                .get("merchant_reference")
+                .toString(),
             new BigDecimal("2400.00"),
             "UYU",
             "APPROVED",
@@ -424,7 +489,9 @@ class PlatformIntegrationTest {
         id,
         new uy.edu.tic.platform.integration.PaymentClient.Settlement(
             "pay-" + id,
-            id.toString(),
+            db.one("select merchant_reference from payment_attempt where reservation_id=?", id)
+                .get("merchant_reference")
+                .toString(),
             new BigDecimal("1200.00"),
             "UYU",
             "APPROVED",
@@ -482,7 +549,9 @@ class PlatformIntegrationTest {
     var stale =
         new uy.edu.tic.platform.integration.PaymentClient.Settlement(
             "pay-" + id,
-            id.toString(),
+            db.one("select merchant_reference from payment_attempt where reservation_id=?", id)
+                .get("merchant_reference")
+                .toString(),
             new BigDecimal("1200.00"),
             "UYU",
             "APPROVED",
@@ -494,7 +563,9 @@ class PlatformIntegrationTest {
         id,
         new uy.edu.tic.platform.integration.PaymentClient.Settlement(
             "pay-" + id,
-            id.toString(),
+            db.one("select merchant_reference from payment_attempt where reservation_id=?", id)
+                .get("merchant_reference")
+                .toString(),
             new BigDecimal("1200.00"),
             "UYU",
             "APPROVED",
@@ -674,5 +745,247 @@ class PlatformIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(view().name("provider-status"))
         .andExpect(model().attributeDoesNotExist("agenda", "guestCount", "activities"));
+  }
+
+  @Test
+  void reservationCreationNeverAuthorizesAndExplicitPaymentIsIdempotent() throws Exception {
+    UUID id = tx.reserve(instance, 1, "explicit-pay");
+    assertEquals(0, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+    org.mockito.Mockito.verifyNoInteractions(client);
+    payments.pay(id, methodId, "click-1");
+    assertEquals("CONFIRMED", tx.detail(id).get("status"));
+    payments.pay(id, methodId, "click-1");
+    assertThrows(BusinessException.class, () -> payments.pay(id, methodId, "click-2"));
+    org.mockito.Mockito.verify(client, org.mockito.Mockito.times(1))
+        .authorize(
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.any());
+    assertEquals(1, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+  }
+
+  @Test
+  void rejectedAttemptCanBeRetriedWithAnotherMethodWithoutLosingHistory() {
+    UUID id = tx.reserve(instance, 1, "retry");
+    payments.pay(id, declinedMethod, "first");
+    assertEquals("PENDING_PAYMENT", tx.detail(id).get("status"));
+    assertEquals("REJECTED", tx.detail(id).get("payment_status"));
+    assertEquals(1, tourism.committed(instance));
+    assertThrows(BusinessException.class, () -> payments.pay(id, declinedMethod, "same-card"));
+    payments.pay(id, methodId, "second");
+    assertEquals("CONFIRMED", tx.detail(id).get("status"));
+    assertEquals(2, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+    assertEquals(
+        1,
+        db.count(
+            "select count(*) from payment_attempt where reservation_id=? and status='APPROVED'",
+            id));
+    assertEquals(
+        1,
+        db.count(
+            "select count(*) from payment_attempt where reservation_id=? and status='REJECTED'",
+            id));
+  }
+
+  @Test
+  void uncertainAttemptBlocksAnotherChargeAndReconcilesLateApproval() {
+    UUID id = tx.reserve(instance, 1, "lost-response");
+    org.mockito.Mockito.when(
+            client.authorize(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any()))
+        .thenThrow(new IllegalStateException("Timeout"));
+    payments.pay(id, methodId, "click");
+    assertEquals("PAYMENT_UNCERTAIN", tx.detail(id).get("status"));
+    assertEquals(1, tourism.committed(instance));
+    assertThrows(BusinessException.class, () -> payments.pay(id, declinedMethod, "other"));
+    var remote = remote(id, "APPROVED");
+    org.mockito.Mockito.when(client.byReference(remote.merchantReference())).thenReturn(remote);
+    payments.synchronize(id);
+    assertEquals("CONFIRMED", tx.detail(id).get("status"));
+    assertEquals(1, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+  }
+
+  @Test
+  void foreignAndDisabledMethodsCannotStartAttempts() {
+    UUID id = tx.reserve(instance, 1, "protected");
+    UUID foreign = UUID.randomUUID();
+    db.update(
+        "insert into"
+            + " payment_method(id,tourist_id,external_token,brand,last_four,holder,expiry_month,expiry_year)"
+            + " values(?,?,?,'Visa de prueba','4242','Otra persona',12,2099)",
+        foreign,
+        provider,
+        UUID.randomUUID());
+    assertThrows(
+        org.springframework.security.access.AccessDeniedException.class,
+        () -> payments.pay(id, foreign, "foreign"));
+    methods.deactivate(methodId);
+    assertThrows(
+        org.springframework.security.access.AccessDeniedException.class,
+        () -> payments.pay(id, methodId, "disabled"));
+    assertEquals(0, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+    org.mockito.Mockito.verifyNoInteractions(client);
+  }
+
+  @Test
+  void unstartedReservationExpiresAndCancellationDoesNotCreateAnyCharge() {
+    UUID id = tx.reserve(instance, 1, "expire");
+    db.update(
+        "update reservation set expires_at=? where id=?", OffsetDateTime.now().minusSeconds(1), id);
+    tx.expire(id);
+    assertEquals("EXPIRED", tx.detail(id).get("status"));
+    assertEquals(0, tourism.committed(instance));
+    assertThrows(BusinessException.class, () -> payments.pay(id, methodId, "late"));
+    UUID unpaid = tx.reserve(instance, 1, "unpaid-cancel");
+    cancellations.tourist(unpaid);
+    payments.settleCancellation(unpaid);
+    assertEquals("PAYMENT_CANCELLED", tx.detail(unpaid).get("status"));
+    assertEquals(
+        new BigDecimal("0.00"),
+        db.one("select * from cancellation where reservation_id=?", unpaid).get("refunded_amount"));
+    org.mockito.Mockito.verifyNoInteractions(client);
+  }
+
+  @Test
+  void methodRegistrationStoresOnlyTokenMetadataAndNeverCachesCardDataInSession() throws Exception {
+    var c = new uy.edu.tic.platform.integration.PaymentClient.Card();
+    c.holder = "Titular de prueba";
+    c.number = "9900000000004242";
+    c.cvv = "731";
+    c.expiryMonth = 12;
+    c.expiryYear = 2099;
+    UUID key = UUID.randomUUID(), token = UUID.randomUUID();
+    org.mockito.Mockito.when(
+            client.tokenize(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()))
+        .thenAnswer(
+            call -> {
+              assertFalse(
+                  org.springframework.transaction.support.TransactionSynchronizationManager
+                      .isActualTransactionActive());
+              return new uy.edu.tic.platform.integration.PaymentClient.RemoteMethod(
+                  token, "Visa de prueba", "4242", c.holder, 12, 2099);
+            });
+    methods.register(key, c);
+    var row = db.one("select * from payment_method where id=?", key);
+    assertEquals(token, row.get("external_token"));
+    assertFalse(row.values().stream().anyMatch(v -> c.number.equals(v) || c.cvv.equals(v)));
+    String safe = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(c);
+    assertFalse(safe.contains(c.number));
+    assertFalse(safe.contains(c.cvv));
+    mvc.perform(get("/tourist/payment-methods").with(user(touristEmail).roles("TOURIST")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(c.number))))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("value=\"731\""))));
+    var request =
+        mvc.perform(
+                post("/tourist/payment-methods")
+                    .with(anonymous())
+                    .with(csrf())
+                    .param("number", c.number)
+                    .param("cvv", c.cvv))
+            .andExpect(status().is3xxRedirection())
+            .andReturn()
+            .getRequest();
+    assertTrue(
+        request.getSession(false) == null
+            || request.getSession(false).getAttribute("SPRING_SECURITY_SAVED_REQUEST") == null);
+  }
+
+  @Test
+  void payingRequiresCsrfAndTheAuthenticatedReservationOwner() throws Exception {
+    UUID id = tx.reserve(instance, 1, "csrf");
+    mvc.perform(
+            post("/api/v1/reservations/" + id + "/pay")
+                .with(user(touristEmail).roles("TOURIST"))
+                .header("Idempotency-Key", "pay")
+                .contentType("application/json")
+                .content("{\"methodId\":\"" + methodId + "\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/api/v1/reservations/" + id + "/pay")
+                .with(user(providerEmail).roles("PROVIDER"))
+                .with(csrf())
+                .header("Idempotency-Key", "pay")
+                .contentType("application/json")
+                .content("{\"methodId\":\"" + methodId + "\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/api/v1/reservations/" + id + "/pay")
+                .with(user(touristEmail).roles("TOURIST"))
+                .with(csrf())
+                .header("Idempotency-Key", "tampered")
+                .contentType("application/json")
+                .content("{\"methodId\":\"" + methodId + "\",\"action\":\"APPROVE\"}"))
+        .andExpect(status().isBadRequest());
+    assertEquals(0, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+  }
+
+  @Test
+  void concurrentPaymentIntentsCannotCreateTwoAuthorizations() throws Exception {
+    UUID id = tx.reserve(instance, 1, "concurrent-pay");
+    var pool = Executors.newFixedThreadPool(2);
+    var go = new CountDownLatch(1);
+    try {
+      List<Future<Boolean>> results = new ArrayList<>();
+      for (int n = 0; n < 2; n++) {
+        String key = "pay-" + n;
+        results.add(
+            pool.submit(
+                () -> {
+                  login(touristEmail);
+                  go.await();
+                  try {
+                    attempts.begin(id, methodId, key);
+                    return true;
+                  } catch (BusinessException e) {
+                    return false;
+                  } finally {
+                    SecurityContextHolder.clearContext();
+                  }
+                }));
+      }
+      go.countDown();
+      int success = 0;
+      for (var f : results) if (f.get(10, TimeUnit.SECONDS)) success++;
+      assertEquals(1, success);
+      assertEquals(1, db.count("select count(*) from payment_attempt where reservation_id=?", id));
+      payments.synchronize(id);
+      assertEquals("CONFIRMED", tx.detail(id).get("status"));
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void lateApprovalAfterHoldExpiryKeepsItsReservedCapacityAndConfirms() {
+    UUID id = tx.reserve(instance, 1, "late-canonical");
+    attempts.begin(id, methodId, "intent");
+    var expiry = OffsetDateTime.now().minusSeconds(1);
+    db.update("update reservation set expires_at=? where id=?", expiry, id);
+    db.update("update payment_attempt set expires_at=? where reservation_id=?", expiry, id);
+    tx.expire(id);
+    assertEquals(1, tourism.committed(instance));
+    tx.apply(id, remote(id, "APPROVED"), null);
+    assertEquals("CONFIRMED", tx.detail(id).get("status"));
+    assertEquals(1, tourism.committed(instance));
   }
 }

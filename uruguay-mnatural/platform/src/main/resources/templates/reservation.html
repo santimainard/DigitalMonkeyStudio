@@ -54,11 +54,21 @@
 <p th:if="${reservation.status == 'PAYMENT_UNCERTAIN'}">Estamos comprobando el pago. Conservamos tus lugares mientras verificamos el resultado. No crees otra reserva para volver a pagar.</p>
 <p th:text="|Plazo para pagar: ${@fmt.date(reservation.expires_at)}|">
 </p>
-<a class="button" th:if="${reservation.status == 'PENDING_PAYMENT' and reservation.checkout_url != null}" th:href="${reservation.checkout_url}">Ir al simulador de pago</a>
+<div th:if="${reservation.can_pay}">
+<h2>Pagar mi reserva</h2>
+<p th:if="${#lists.isEmpty(paymentMethods)}">Registrá una tarjeta ficticia para completar el pago. No ingreses tarjetas bancarias reales.</p>
+<a th:if="${#lists.isEmpty(paymentMethods)}" class="button" th:href="@{/tourist/payment-methods}">Registrar método de pago</a>
+<form th:unless="${#lists.isEmpty(paymentMethods)}" th:action="@{/tourist/reservations/{id}/pay(id=${reservation.id})}" method="post" class="once">
+<input type="hidden" name="key" th:value="${paymentKey}">
+<label>Método de pago<select name="methodId" required><option value="">Seleccioná una tarjeta de prueba</option><option th:each="m:${paymentMethods}" th:value="${m.id}" th:text="|${m.brand} terminada en ${m.last_four} — Vence ${m.expiry_month}/${m.expiry_year}|"></option></select></label>
+<p>El importe se autoriza únicamente al presionar PAGAR. La simulación no mueve dinero real.</p>
+<button>PAGAR</button></form></div>
 <form th:action="@{/tourist/reservations/{id}/refresh(id=${reservation.id})}" method="post">
 <button class="secondary">Actualizar estado</button>
 </form>
 </div>
+<div class="notice success" th:if="${reservation.cancellation == null and (reservation.status == 'CONFIRMED' or reservation.status == 'COMPLETED')}">Pago exitoso. Tu reserva está confirmada.</div>
+<section class="panel" th:if="${!#lists.isEmpty(reservation.attempts)}"><h2>Historial de intentos</h2><article class="payment-attempt" th:each="a:${reservation.attempts}"><strong th:text="${@fmt.state(a.status)}"></strong><span th:text="| — UYU ${a.amount} · ${@fmt.date(a.created_at)}|"></span><p th:if="${a.brand != null}" th:text="|${a.brand} terminada en ${a.last_four}|"></p><p th:if="${a.status == 'REJECTED'}" th:text="${@fmt.paymentReason(a.decline_reason)}"></p></article></section>
 <section class="panel" th:if="${reservation.cancellation != null}">
 <h2>Cancelación</h2><p th:text="${reservation.cancellation.completed_at == null ? 'Pendiente de conciliación. No se ha confirmado el reembolso.' : 'Cancelación completada.'}"></p>
 <p th:text="|Solicitada por: ${reservation.cancellation.requested_by == 'PROVIDER' ? 'prestador' : 'turista'} · Reembolso sobre el pago: ${reservation.cancellation.refund_percent} %| "></p>

@@ -184,12 +184,29 @@ public class ApiController {
   ResponseEntity<?> reserve(
       @RequestHeader("Idempotency-Key") String key, @Valid @RequestBody ReservationRequest f) {
     var id = reservations.reserve(f.instanceId(), f.participantCount(), key);
-    payments.synchronize(id);
     return ResponseEntity.status(201).body(camel(reservations.detail(id)));
   }
 
   @GetMapping("/reservations/{id}")
   Object reservation(@PathVariable UUID id) {
+    return camel(reservations.detail(id));
+  }
+
+  public record PayRequest(UUID methodId) {
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public void unsupported(String name, Object value) {
+      throw new IllegalArgumentException("Parámetro no permitido para pagar.");
+    }
+  }
+
+  @PostMapping("/reservations/{id}/pay")
+  Object pay(
+      @PathVariable UUID id,
+      @RequestHeader("Idempotency-Key") String key,
+      @RequestBody PayRequest f) {
+    if (f.methodId() == null)
+      throw new BusinessException("INVALID_INPUT", "Elegí un método de pago.");
+    payments.pay(id, f.methodId(), key);
     return camel(reservations.detail(id));
   }
 
