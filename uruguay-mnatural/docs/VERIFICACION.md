@@ -1,5 +1,33 @@
 # Verificación de la entrega
 
+## Verificación actual: pagos integrados (26 de octubre de 2026)
+
+`mvn verify`: **91 pruebas aprobadas, 0 fallos, 0 errores y 0 omitidas** con JDK 21, Maven 3.9.9 y Docker.
+
+| Suite | Ejecutadas | Base / objetivo |
+| --- | ---: | --- |
+| BookingRulesTest | 5 | Límites y reglas de reserva |
+| RegistrationChecksTest | 3 | Registro y validaciones anteriores |
+| PaymentHttpTest | 2 | Cliente REST real e idempotencia |
+| PlatformIntegrationTest | 28 | H2; flujos, permisos, intentos, cupos y cancelaciones |
+| PostgresIntegrationTest | 28 | Mismos escenarios con PostgreSQL 16 real |
+| PaymentMigrationTest | 1 | Actualización de esquema V5 → V6 con pago y evento histórico |
+| SimulatorTest | 11 | Tokenización, reglas determinísticas, duplicados y carreras |
+| PostgresSimulatorTest | 11 | Mismos escenarios del simulador con PostgreSQL 16 real |
+| ProductionApiTest | 1 | Control de fallos ausente en el arranque normal |
+| SimulatorMigrationTest | 1 | Conservación de pagos y reembolsos V2 → V3 |
+
+`scripts/http-smoke.py` pasó con dos procesos Java HTTP independientes: registro y datos enmascarados, creación sin autorización, PAGAR, rechazo, otra tarjeta, idempotencia, campos de decisión rechazados, bloqueo de otro cobro ante incertidumbre, propietario ajeno, timeout, aprobación con respuesta perdida, eventos duplicados, reembolso parcial/completo, respuesta de reembolso perdida, autorización demorada que llega después de cancelar y cancelación de instancia con reservas pagadas y sin pagar. Se comprobó que los números completos ficticios no aparecieran en los logs de ambos servicios.
+
+El recorrido de Chromium (`scripts/workspace-browser-test.cjs`) también pasó sobre PostgreSQL: registrar la tarjeta desde el perfil, seleccionar el método en la reserva, presionar PAGAR y ver confirmación dentro de platform, sin enlace a checkout. Se comprobaron las pantallas de métodos, los paneles de cada rol y sus variantes en escritorio y móvil.
+
+Se actualizaron las bases de desarrollo existentes sin borrar volúmenes: los dos pagos originales quedaron conservados y copiados a dos intentos legados con las mismas reservas e importes; las dos operaciones remotas originales también se conservaron. Flyway aplicó platform V6 y simulator V3. Los JAR iniciaron y las comprobaciones de salud/consulta funcionaron.
+
+Repetir con un JDK completo: `sh ./mvnw verify` (Windows: `.\mvnw.cmd verify`), Docker activo y después `python3 scripts/http-smoke.py`. El smoke habilita `simulation-control` solo en su simulador efímero; ese perfil no se requiere para usar la aplicación. Ver [PAGOS.md](PAGOS.md) para endpoints, tarjetas de prueba y actualización de instalaciones previas.
+
+Las secciones siguientes conservan los resultados de entregas anteriores. Sus cifras y el antiguo checkout describen versiones históricas, no el flujo vigente.
+
+
 ## Verificación de la actualización de cancelaciones y permisos
 
 La ejecución en el entorno de desarrollo en la nube pasó **55 pruebas: 0 fallos, 0 errores y 0 omitidas**, con JDK 21, Maven 3.9.9 y Docker. Se ejecutaron BookingRulesTest (5), PaymentHttpTest (2), PlatformIntegrationTest con H2 (19), PostgresIntegrationTest con PostgreSQL 16 real (19), RegistrationChecksTest (3) y SimulatorTest (7).

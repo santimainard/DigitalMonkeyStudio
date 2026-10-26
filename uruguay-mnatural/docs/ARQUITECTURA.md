@@ -22,19 +22,21 @@ El módulo platform usa MVC en capas con Thymeleaf y Spring JDBC. El simulador e
 
 `ReservationTransactions.reserve` abre una transacción corta. Bloquea primero al turista para serializar claves repetidas y luego la instancia para serializar cupos. Una clave reutilizada con cuerpo distinto produce conflicto. Suma personas de reservas comprometidas, valida fecha y cantidad, copia precio y condiciones y crea reserva y pago local. La transacción termina antes de llamar al servicio externo.
 
-`Payments.synchronize` consulta por paymentId o referencia. Si la operación no existe, la crea con la misma referencia. `ReservationTransactions.apply` bloquea instancia y reserva, comprueba referencia, importe, moneda, vencimiento y aprobación y cambia el estado una sola vez. Un evento repetido no confirma de nuevo. El simulador impide pasar de un estado terminal a otro y no aprueba después del vencimiento.
+`Payments.pay` es la única entrada de autorización del turista. PaymentAttemptTransactions valida y persiste una intención con método propio, referencia UUID y plazo de la reserva. Tras el commit, PaymentClient envía el token al simulador y ReservationTransactions aplica el resultado en otra transacción. Crear la reserva no contacta al simulador.
 
-Ante un timeout, `uncertain` conserva lugares. La tarea de conciliación consulta cada 30 segundos. La liberación exige REJECTED, CANCELLED o EXPIRED remoto; el simple paso de diez minutos no implica que un pago desconocido haya fallado. Al vencer sin respuesta se prefiere retener temporalmente a vender un lugar posiblemente pagado.
+Un rechazo deja el intento en el historial y conserva la reserva pendiente para otra tarjeta dentro del mismo plazo. UNKNOWN bloquea nuevos intentos. La conciliación recupera por referencia y solo reenvía una intención explícita ya persistida. No hay llamadas HTTP dentro de bloqueos de PostgreSQL. La restricción única de aprobación por reserva y la comprobación equivalente del simulador previenen dobles pagos.
+
+Los métodos se registran por tokenización ficticia; platform conserva únicamente token y metadatos enmascarados. No se guardan PAN ni CVV en ninguna base. La API del simulador es autenticada y no tiene vistas ni rutas de decisión. El protocolo y sus reglas están en [PAGOS.md](PAGOS.md).
 
 ## Modelo relacional
 
-User 1 a 0..1 Venture. Venture 1 a N Activity. Activity N a N Category y N a N EquipmentType (con modalidad). Activity 1 a N ActivityInstance. User turista 1 a N Reservation. Instance 1 a N Reservation. Reservation 1 a 1 Payment y 1 a 0..1 Review. Department 1 a N Locality. Los snapshots conservan las condiciones de compra.
+User 1 a 0..1 Venture. Venture 1 a N Activity. Activity N a N Category y N a N EquipmentType (con modalidad). Activity 1 a N ActivityInstance. User turista 1 a N Reservation. Instance 1 a N Reservation. Reservation 1 a 1 Payment (resumen), 1 a N PaymentAttempt y 1 a 0..1 Review. Turista 1 a N PaymentMethod tokenizados. Department 1 a N Locality. Los snapshots conservan las condiciones de compra.
 
 Las migraciones son la definición exacta del esquema. El proyecto no usa borrado en cascada sobre reservas y pagos. Las instancias referenciadas se desactivan; los catálogos utilizados se desactivan. Las actividades se retiran del portal con isPublished=false.
 
 ## Seguridad
 
-El portal usa sesiones Spring Security, BCrypt y CSRF. Los controladores y servicios comprueban rol y dueño. La API pública solo expone proyecciones. La aprobación JSON tiene una cadena HTTP Basic sin sesión; el formulario HTML usa sesión y CSRF. El webhook exige un secreto y vuelve a consultar la operación, sin confiar en el estado recibido. El simulador exige X-API-Key en sus rutas JSON y protege sus formularios de checkout con CSRF.
+El portal usa sesiones Spring Security, BCrypt y CSRF. Los controladores y servicios comprueban rol y dueño. La API pública solo expone proyecciones. La aprobación JSON tiene una cadena HTTP Basic sin sesión; el formulario HTML usa sesión y CSRF. El webhook exige un secreto y vuelve a consultar la operación, sin confiar en el estado recibido. El simulador exige X-API-Key, no crea sesiones ni presenta formularios. El registro de métodos y PAGAR requieren sesión, dueño y CSRF en platform; se deshabilitó la caché de peticiones de login para no guardar cuerpos sensibles en sesión.
 
 ## Tiempo y pruebas
 
@@ -57,3 +59,5 @@ V5 elimina la antigua columna allow_reapply sin modificar la migración V3 aplic
 WorkspaceSummary concentra consultas de lectura para el turista y el prestador, siempre limitadas al usuario autenticado. Usa Clock para los límites de tiempo. Los conteos abarcan la cuenta completa y no dependen de la página visible del historial; los listados destacados se limitan a una próxima reserva y cuatro fechas de agenda. Las cancelaciones solicitadas se excluyen de salidas/reseñas disponibles y participantes esperados.
 
 Las plantillas privadas comparten navegación e iconos SVG locales. workspace.css solo se carga en esos paneles y no modifica los formularios de registro ni el catálogo. workspace.js filtra la bandeja administrativa en el navegador; sin JavaScript todas las solicitudes siguen disponibles. Los formularios existentes conservan sus rutas y protección CSRF. No se agregaron dependencias de producción ni migraciones para este rediseño.
+
+V6 mantiene payment como resumen histórico y agrega payment_attempt, payment_method y la asociación de eventos a intentos. Los pagos previos se copian como intentos legados, sin reinterpretarlos como nuevas autorizaciones. V3 del simulador conserva las operaciones y agrega reglas/tokenización sin columnas PAN ni CVV. Una cancelación por referencia puede sellar una operación antes de recibir la autorización: esa marca impide cargos tardíos y conserva la conciliación de reembolsos.

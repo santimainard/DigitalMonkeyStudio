@@ -108,13 +108,34 @@ public class CancellationTransactions {
   }
 
   @Transactional
+  public void finishUnpaid(UUID id) {
+    lock(id);
+    var c = db.one("select * from cancellation where reservation_id=? for update", id);
+    if (c.get("completed_at") != null) return;
+    if (db.count(
+            "select count(*) from payment_attempt where reservation_id=? and status in"
+                + " ('REQUESTED','UNKNOWN','CREATED','PENDING','APPROVED','REFUNDED')",
+            id)
+        > 0)
+      throw new BusinessException("PAYMENT_UNCERTAIN", "Es necesario comprobar el intento remoto.");
+    db.update("update payment set status='CANCELLED' where reservation_id=?", id);
+    db.update("update reservation set status='PAYMENT_CANCELLED' where id=?", id);
+    db.update(
+        "update cancellation set completed_at=?,refunded_amount=0 where reservation_id=?",
+        utc(clock.instant()),
+        id);
+  }
+
+  @Transactional
   public void finish(UUID id, Settlement remote) {
     var r = lock(id);
     var c = db.one("select * from cancellation where reservation_id=? for update", id);
     if (c.get("completed_at") != null) return;
     var p = db.one("select * from payment where reservation_id=?", id);
+    var a =
+        db.one("select * from payment_attempt where id=? for update", p.get("current_attempt_id"));
     if (remote == null
-        || !id.toString().equals(remote.merchantReference())
+        || !a.get("merchant_reference").equals(remote.merchantReference())
         || !"UYU".equals(remote.currency())
         || remote.amount() == null
         || remote.amount().compareTo((BigDecimal) r.get("total_amount")) != 0
@@ -132,6 +153,15 @@ public class CancellationTransactions {
             : new BigDecimal("0.00");
     if (remote.refundedAmount() == null || expected.compareTo(remote.refundedAmount()) != 0)
       throw new BusinessException("INVALID_PAYMENT", "Importe de reembolso incorrecto.");
+    db.update(
+        "update payment_attempt set"
+            + " external_payment_id=?,status=?,last_checked_at=?,approved_reservation_id=? where"
+            + " id=?",
+        remote.paymentId(),
+        "APPROVED".equals(remote.status()) ? "REFUNDED" : remote.status(),
+        utc(clock.instant()),
+        "APPROVED".equals(remote.status()) ? id : null,
+        a.get("id"));
     db.update(
         "update payment set external_payment_id=?,status=?,last_checked_at=? where"
             + " reservation_id=?",

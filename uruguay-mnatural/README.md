@@ -29,11 +29,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 docker compose up --build
 ```
 
-4. Cuando Spring termine de iniciar, abrí **http://localhost:8080**. El simulador está en **http://localhost:8081/checkout/{paymentId}** y se abre desde la reserva.
+4. Cuando Spring termine de iniciar, abrí **http://localhost:8080**. El turista registra una tarjeta ficticia en **Mis métodos de pago** y paga desde el detalle de su reserva. El puerto 8081 expone exclusivamente la API externa consumida por el backend.
 
 El primer inicio descarga imágenes y dependencias. No hace falta instalar Java, Maven o PostgreSQL por separado con esta opción. `setup.ps1` solo crea `.env` con valores aleatorios; no modifica políticas permanentes de PowerShell. No compartas `.env` ni lo subas a Git.
 
 En macOS/Linux: `sh scripts/setup.sh` y `docker compose up --build`.
+
+## Pagos integrados
+
+El turista nunca decide el resultado de una transacción ni abandona Uruguay Mnatural para autorizarla. Primero registra un método ficticio; crear una reserva solo retiene cupos. Al presionar **PAGAR**, el backend consume la API del simulador y muestra aprobación, rechazo o verificación pendiente. Cada intento tiene su propia referencia idempotente; un rechazo permite otra tarjeta dentro del mismo plazo.
+
+La lista cerrada de tarjetas, los estados, la tokenización, las migraciones y los escenarios de prueba están en [docs/PAGOS.md](docs/PAGOS.md). Nunca ingresar tarjetas reales. Para actualizar desde la versión anterior, reiniciar ambos servicios para aplicar platform V6 y payment-simulator V3; los pagos históricos se conservan.
 
 ## Mi espacio
 
@@ -110,7 +116,7 @@ La demora remota conserva cupos hasta que el resultado sea comprobable. Si se in
 
 `docker compose stop` detiene y conserva datos. `docker compose up -d` los vuelve a iniciar. `docker compose logs -f platform payments` muestra los registros. Los volúmenes mantienen los datos tras recrear contenedores. `docker compose down -v` **borra ambas bases**; usarlo solo si se quiere reiniciar la demostración.
 
-Los puertos publicados están ligados a localhost. El despliegue público requiere HTTPS, cookies secure y variables propias; los botones del simulador son para demostración. La consola no imprime contraseñas ni secretos. El diseño visual es una propuesta para presentar al docente cliente.
+Los puertos publicados están ligados a localhost. El despliegue público requiere HTTPS, cookies secure y variables propias. Solo se admiten los identificadores ficticios del manual de pagos. La consola no imprime contraseñas ni secretos. El diseño visual es una propuesta para presentar al docente cliente.
 
 ## Control de versiones
 

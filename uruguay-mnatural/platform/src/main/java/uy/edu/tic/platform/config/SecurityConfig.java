@@ -71,10 +71,12 @@ public class SecurityConfig {
                     .denyAll()
                     .requestMatchers("/provider/**")
                     .hasRole("PROVIDER")
-                    .requestMatchers("/tourist/**", "/api/v1/reservations/**")
+                    .requestMatchers(
+                        "/tourist/**", "/api/v1/reservations/**", "/api/v1/payment-methods/**")
                     .hasRole("TOURIST")
                     .anyRequest()
                     .authenticated())
+        .requestCache(c -> c.disable())
         .formLogin(f -> f.loginPage("/login").defaultSuccessUrl("/dashboard", true).permitAll())
         .logout(l -> l.logoutSuccessUrl("/"))
         .csrf(c -> c.ignoringRequestMatchers("/api/v1/payment-events"))

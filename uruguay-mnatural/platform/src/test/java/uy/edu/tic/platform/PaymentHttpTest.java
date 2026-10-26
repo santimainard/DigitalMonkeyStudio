@@ -38,7 +38,7 @@ class PaymentHttpTest {
                         "PENDING",
                         expires,
                         null,
-                        "http://localhost/checkout/payment-1"));
+                        null));
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(201, data.length);
             exchange.getResponseBody().write(data);
@@ -53,7 +53,15 @@ class PaymentHttpTest {
               "http://127.0.0.1:" + server.getAddress().getPort(),
               "test-key",
               "http://localhost/api/v1/payment-events");
-      var result = client.create("reservation-1", new BigDecimal("2400.00"), "UYU", expires);
+      var result =
+          client.authorize(
+              "reservation-1",
+              "booking-1",
+              "tourist-1",
+              java.util.UUID.randomUUID(),
+              new BigDecimal("2400.00"),
+              "UYU",
+              expires);
       assertEquals("reservation-1", key.get());
       assertEquals("reservation-1", json.readTree(body.get()).get("merchantReference").asText());
       assertEquals("PENDING", result.status());

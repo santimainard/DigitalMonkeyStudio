@@ -1,11 +1,11 @@
 openapi: 3.0.3
 info:
   title: Uruguay Mnatural API
-  version: 1.0.0
-  description: API del Proyecto TIC 2026. Fechas diarias/mensuales interpretadas en
-    America/Montevideo. Listados paginados; orden determinista. La aprobación requiere
-    HTTP Basic ADMIN. Reservas privadas requieren sesión de login y token CSRF del
-    formulario (cabecera X-CSRF-TOKEN).
+  version: 2.0.0
+  description: API del Proyecto TIC 2026. Fechas diarias/mensuales interpretadas en America/Montevideo.
+    Listados paginados; orden determinista. La aprobación requiere HTTP Basic ADMIN. Reservas privadas
+    requieren sesión de login y token CSRF del formulario (cabecera X-CSRF-TOKEN). Pagos con métodos ficticios
+    tokenizados y autorización explícita desde platform; el simulador no tiene checkout.
 servers:
 - url: http://localhost:8080/api/v1
   description: Desarrollo local
@@ -312,17 +312,17 @@ paths:
   /reservations/{id}/cancellation:
     post:
       summary: Cancelar una reserva propia antes del inicio
-      description: >-
-        Requiere sesión TOURIST y X-CSRF-TOKEN. Usa la política guardada en la reserva.
-        Idempotente por reserva. Devuelve la reserva y cancellation con requestedBy,
-        refundPercent, requestedAt, completedAt y refundedAmount.
-        completedAt nulo indica conciliación pendiente, no una devolución finalizada.
+      description: Requiere sesión TOURIST y X-CSRF-TOKEN. Usa la política guardada en la reserva. Idempotente
+        por reserva. Devuelve la reserva y cancellation con requestedBy, refundPercent, requestedAt, completedAt
+        y refundedAmount. completedAt nulo indica conciliación pendiente, no una devolución finalizada.
         Si cancela una instancia el prestador, se devuelve el 100 % de las reservas vigentes.
       parameters:
       - name: id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       security:
       - session: []
         csrf: []
@@ -331,7 +331,8 @@ paths:
           description: Reserva con estado de su cancelación e importe reembolsado
           content:
             application/json:
-              schema: {type: object}
+              schema:
+                type: object
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -342,7 +343,7 @@ paths:
           $ref: '#/components/responses/Error'
   /reservations:
     post:
-      summary: Crear reserva idempotente y solicitar pago
+      summary: Crear reserva idempotente y retener cupos, sin iniciar un pago
       responses:
         '201':
           description: Resultado
@@ -388,6 +389,8 @@ paths:
       security:
       - session: []
         csrf: []
+      description: No contacta al simulador ni crea un intento. Para autorizar hay que llamar explícitamente
+        a /reservations/{id}/pay.
   /reservations/{id}:
     get:
       summary: Consultar reserva propia
@@ -413,7 +416,7 @@ paths:
         name: id
         in: path
         required: true
-        schema: &id006
+        schema: &id015
           type: string
           format: uuid
       security:
@@ -497,6 +500,139 @@ paths:
               - status
       security:
       - webhook: []
+  /payment-methods:
+    get:
+      summary: Listar mis métodos de pago enmascarados
+      description: ''
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Resultado verificado o estado de conciliación
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethod'
+        '400': &id006
+          $ref: '#/components/responses/Error'
+        '401': &id007
+          $ref: '#/components/responses/Error'
+        '403': &id008
+          $ref: '#/components/responses/Error'
+        '404': &id009
+          $ref: '#/components/responses/Error'
+        '409': &id010
+          $ref: '#/components/responses/Error'
+        '503': &id011
+          $ref: '#/components/responses/Error'
+    post:
+      summary: Registrar un método ficticio tokenizado
+      description: Solo TOURIST. La plataforma guarda token y metadatos, nunca PAN/CVV; los errores no
+        devuelven esos datos.
+      security: &id013
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Resultado verificado o estado de conciliación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: &id012
+                    type: string
+                    format: uuid
+        '400': *id006
+        '401': *id007
+        '403': *id008
+        '404': *id009
+        '409': *id010
+        '503': *id011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardRegistration'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *id012
+        description: Clave propia del envío. Repetirla recupera el mismo intento; otro método exige una
+          nueva clave.
+  /payment-methods/{id}/deactivate:
+    post:
+      summary: Desactivar un método propio sin borrar historial
+      description: ''
+      security: *id013
+      responses:
+        '200':
+          description: Resultado verificado o estado de conciliación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: *id012
+                  active:
+                    type: boolean
+        '400': *id006
+        '401': *id007
+        '403': *id008
+        '404': *id009
+        '409': *id010
+        '503': *id011
+      parameters:
+      - &id014
+        name: id
+        in: path
+        required: true
+        schema: *id012
+  /reservations/{id}/pay:
+    post:
+      summary: PAGAR explícitamente con un método propio
+      description: Crear reserva no autoriza. El backend calcula importe, referencia y cliente. APPROVED
+        confirma; REJECTED permite otra tarjeta en plazo. UNKNOWN conserva cupos y bloquea otro intento.
+        No se acepta una decisión de aprobación/rechazo del navegador.
+      security: *id013
+      responses:
+        '200':
+          description: Resultado verificado o estado de conciliación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400': *id006
+        '401': *id007
+        '403': *id008
+        '404': *id009
+        '409': *id010
+        '503': *id011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - methodId
+              properties:
+                methodId: *id012
+              additionalProperties: false
+      parameters:
+      - *id014
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          maxLength: 100
+        description: Clave propia del envío. Repetirla recupera el mismo intento; otro método exige una
+          nueva clave.
 components:
   securitySchemes:
     adminBasic:
@@ -530,7 +666,7 @@ components:
             required:
             - field
             - message
-        correlationId: *id006
+        correlationId: *id015
       required:
       - code
       - message
@@ -641,7 +777,7 @@ components:
     Reservation:
       type: object
       properties:
-        id: *id006
+        id: *id015
         code:
           type: string
           nullable: true
@@ -672,9 +808,6 @@ components:
         expiresAt:
           type: string
           format: date-time
-        checkoutUrl:
-          type: string
-          nullable: true
         fullRefundMinutes:
           type: integer
           minimum: 0
@@ -692,13 +825,33 @@ components:
           type: object
           nullable: true
           properties:
-            requestedBy: {type: string, enum: [TOURIST, PROVIDER]}
-            refundPercent: {type: integer, minimum: 0, maximum: 100}
-            requestedAt: {type: string, format: date-time}
-            completedAt: {type: string, format: date-time, nullable: true}
-            refundedAmount: {type: number, nullable: true}
+            requestedBy:
+              type: string
+              enum:
+              - TOURIST
+              - PROVIDER
+            refundPercent:
+              type: integer
+              minimum: 0
+              maximum: 100
+            requestedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+              nullable: true
+            refundedAmount:
+              type: number
+              nullable: true
         canReview:
           type: boolean
+        canPay:
+          type: boolean
+        attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentAttempt'
       required:
       - id
       - code
@@ -712,8 +865,105 @@ components:
       - status
       - paymentStatus
       - expiresAt
-      - checkoutUrl
       - canReview
+      - canPay
+      - attempts
+    PaymentMethod:
+      type: object
+      properties:
+        id: *id012
+        brand:
+          type: string
+        lastFour:
+          type: string
+          pattern: ^[0-9]{4}$
+        holder:
+          type: string
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+        expiryYear:
+          type: integer
+        active:
+          type: boolean
+      required:
+      - id
+      - brand
+      - lastFour
+      - expiryMonth
+      - expiryYear
+      - active
+    CardRegistration:
+      type: object
+      required:
+      - holder
+      - number
+      - expiryMonth
+      - expiryYear
+      - cvv
+      properties:
+        holder:
+          type: string
+          maxLength: 100
+        number:
+          type: string
+          writeOnly: true
+          description: Número exclusivamente ficticio de la lista cerrada de docs/PAGOS.md; no se almacena
+            ni se devuelve.
+        cvv:
+          type: string
+          writeOnly: true
+          pattern: ^[0-9]{3}$
+          description: Solo durante el registro. Nunca se persiste.
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+        expiryYear:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+    PaymentAttempt:
+      type: object
+      properties:
+        id: *id012
+        methodId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+          - REQUESTED
+          - UNKNOWN
+          - CREATED
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - EXPIRED
+          - CANCELLED
+          - REFUNDED
+        amount:
+          type: number
+        currency:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        brand:
+          type: string
+          nullable: true
+        lastFour:
+          type: string
+          nullable: true
+        declineReason:
+          type: string
+          nullable: true
   responses:
     Error:
       description: Error de validación, autenticación, autorización o negocio

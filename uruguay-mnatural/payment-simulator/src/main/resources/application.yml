@@ -1,4 +1,7 @@
 server:
+  error:
+    include-message: never
+    include-stacktrace: never
   port: ${PORT:8081}
   servlet:
     session:
