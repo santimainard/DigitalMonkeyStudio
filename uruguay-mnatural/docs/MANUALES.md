@@ -69,3 +69,12 @@ Los errores aparecen en rojo junto a cada campo al escribir, al salir del campo 
 El teléfono admite entre 6 y 15 dígitos, con + inicial y separadores habituales (espacios, paréntesis y guiones), sin letras. No se impone un prefijo uruguayo porque pueden registrarse prestadores con contactos internacionales. El documento conserva su formato de texto para admitir documentos extranjeros.
 
 RUT y razón social se muestran y exigen únicamente al seleccionar Persona jurídica; el RUT requiere 12 dígitos. Al cambiar a Persona física se ocultan y se excluyen del envío y del almacenamiento. Departamento y localidad deben seleccionarse y corresponder entre sí.
+
+## Mi espacio de cada rol
+
+- **Turista:** el resumen muestra las salidas confirmadas por comenzar, los pagos pendientes y las experiencias que admiten una reseña. La próxima reserva tiene un acceso directo a su detalle. El historial conserva todos los estados y su paginación. Desde Explorar Uruguay se accede al catálogo; las propuestas del pie provienen de actividades publicadas de emprendimientos verificados.
+- **Prestador habilitado:** ve sus actividades publicadas, fechas futuras y participantes con reserva confirmada. La agenda muestra las próximas cuatro instancias, con sus lugares comprometidos. Puede abrir Fechas y cupos, consultar reservas y desplegar la edición de contacto. Una cancelación pendiente de conciliación se indica en el panel.
+- **Administrador:** ve solicitudes pendientes, habilitadas y denegadas. Los filtros cambian la lista sin salir del panel; abrir una solicitud muestra responsable, contacto y decisión. Los catálogos se despliegan por separado para crear, renombrar, activar, desactivar o eliminar elementos.
+- **Prestador pendiente o denegado:** consulta la etapa de revisión y los datos enviados. La denegación mantiene su motivo y fecha. Las funciones operativas permanecen bloqueadas y no se habilitan nuevas solicitudes.
+
+En móviles, la navegación lateral pasa a una franja horizontal desplazable. Los accesos de cada rol conservan los mismos permisos.

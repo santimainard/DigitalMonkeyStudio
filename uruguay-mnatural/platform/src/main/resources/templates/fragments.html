@@ -31,5 +31,35 @@
 </span>
 <a class="page-link button secondary" th:if="${result.page + 1 < result.totalPages}" th:href="@{''(page=${result.page + 1})}" th:attr="data-page=${result.page + 1}">Siguiente</a>
 </div>
+<svg th:fragment="icon(name)" class="ws-icon" aria-hidden="true" viewBox="0 0 24 24"><use th:href="${'#ws-' + name}"></use></svg>
+<div role="banner" th:fragment="workspaceHeader" class="workspace-header">
+<a class="workspace-brand" th:href="@{/dashboard}" aria-label="Uruguay Mnatural, mi espacio"><span class="brand-symbol">m<span>n</span></span><span>URUGUAY<small>MNATURAL</small></span></a>
+<span class="workspace-edition">Un lugar para salir de lo de siempre.</span>
+<div class="workspace-account"><span class="account-avatar" th:text="${#strings.substring(viewer.first_name,0,1)}"></span><span th:text="${viewer.first_name}"></span><form th:action="@{/logout}" method="post"><button class="workspace-exit">Salir <svg th:replace="~{fragments :: icon('arrow')}"></svg></button></form></div>
+<svg class="ws-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="ws-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="ws-close" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></symbol>
+<symbol id="ws-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+<symbol id="ws-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v5m10-5v5M3 11h18m-13 5h2m4 0h2"/></symbol>
+<symbol id="ws-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+<symbol id="ws-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/></symbol>
+<symbol id="ws-note" viewBox="0 0 24 24"><path d="M5 3h14v18l-4-3-3 3-3-3-4 3V3Zm4 5h6m-6 4h6"/></symbol>
+<symbol id="ws-pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2"/></symbol>
+<symbol id="ws-star" viewBox="0 0 24 24"><path d="m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1Z"/></symbol>
+<symbol id="ws-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+</defs></svg>
+</div>
+<aside th:fragment="workspaceRail(role, enabled)" class="workspace-rail">
+<div><p class="rail-caption" th:text="${role == 'TOURIST' ? 'TU CUADERNO DE VIAJE' : (role == 'PROVIDER' ? 'TU EMPRENDIMIENTO' : 'ADMINISTRACIÓN')}"></p>
+<nav class="workspace-nav" aria-label="Mi espacio">
+<a class="is-current" th:href="@{/dashboard}" aria-current="page"><svg th:replace="~{fragments :: icon('grid')}"></svg>Mi espacio</a>
+<th:block th:if="${role == 'TOURIST'}"><a href="#mis-reservas"><svg th:replace="~{fragments :: icon('note')}"></svg>Mis reservas</a><a href="#opiniones"><svg th:replace="~{fragments :: icon('star')}"></svg>Mis opiniones</a><span class="rail-divider"></span><a th:href="@{/explore}"><svg th:replace="~{fragments :: icon('compass')}"></svg>Explorar Uruguay<span class="nav-arrow"><svg th:replace="~{fragments :: icon('arrow')}"></svg></span></a></th:block>
+<th:block th:if="${role == 'PROVIDER' and enabled}"><a href="#actividades"><svg th:replace="~{fragments :: icon('compass')}"></svg>Mis actividades</a><a href="#agenda"><svg th:replace="~{fragments :: icon('calendar')}"></svg>Agenda</a><a th:href="@{/provider/reservations}"><svg th:replace="~{fragments :: icon('note')}"></svg>Reservas recibidas</a><span class="rail-divider"></span><a href="#contacto"><svg th:replace="~{fragments :: icon('pin')}"></svg>Mi emprendimiento</a></th:block>
+<th:block th:if="${role == 'PROVIDER' and !enabled}"><span class="nav-disabled" aria-disabled="true"><svg th:replace="~{fragments :: icon('compass')}"></svg>Actividades</span><span class="nav-disabled" aria-disabled="true"><svg th:replace="~{fragments :: icon('calendar')}"></svg>Agenda</span><span class="nav-disabled" aria-disabled="true"><svg th:replace="~{fragments :: icon('note')}"></svg>Reservas</span></th:block>
+<th:block th:if="${role == 'ADMIN'}"><a href="#emprendimientos"><svg th:replace="~{fragments :: icon('check')}"></svg>Emprendimientos</a><a href="#catalogos"><svg th:replace="~{fragments :: icon('note')}"></svg>Catálogos</a></th:block>
+</nav></div>
+<div class="rail-bottom"><span class="rail-local">34° S · 56° O</span><p th:text="${role == 'TOURIST' ? 'Los mejores planes empiezan por hacerse un lugar.' : (role == 'PROVIDER' ? 'Detrás de cada experiencia, hay alguien que la hace posible.' : 'Cuidar cada detalle también es parte de la experiencia.')}"></p><span class="rail-signature">Hecho para descubrir Uruguay.</span></div>
+</aside>
+<svg th:fragment="routeArt" class="route-art" viewBox="0 0 280 260" fill="none" aria-hidden="true"><path d="M-30 195C30 96 45 110 83 87S139 108 164 52 244 13 300 40M-18 214C41 108 55 131 91 104S151 124 179 68 251 36 300 57M-12 235C42 144 75 138 101 123S165 141 195 88 259 60 310 77M9 259C59 167 91 167 115 142S180 162 213 111 266 85 309 102" stroke="currentColor" stroke-width="1"/><path d="M50 203C54 147 130 202 131 141s101 3 91-82" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 6"/><circle cx="50" cy="203" r="6" fill="currentColor"/><circle cx="222" cy="59" r="7" stroke="currentColor" stroke-width="2"/><path d="m42 49 8-21 8 21-8-4Z" stroke="currentColor"/><text x="45" y="21" fill="currentColor" font-size="9" font-family="sans-serif">N</text></svg>
 </body>
 </html>

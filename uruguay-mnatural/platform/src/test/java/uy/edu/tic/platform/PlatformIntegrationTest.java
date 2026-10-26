@@ -649,4 +649,30 @@ class PlatformIntegrationTest {
         .andExpect(
             content().string(org.hamcrest.Matchers.containsString("data-legal-fields hidden")));
   }
+
+  @Test
+  void workspaceSummariesAreScopedAndIndependentOfHistoryPagination() throws Exception {
+    UUID confirmed = tx.reserve(instance, 1, "dashboard-confirmed");
+    tx.apply(confirmed, remote(confirmed, "APPROVED"), null);
+    tx.reserve(instance, 1, "dashboard-pending");
+    mvc.perform(get("/tourist/reservations?page=1").with(user(touristEmail).roles("TOURIST")))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("upcomingCount", 1L))
+        .andExpect(model().attribute("pendingCount", 1L))
+        .andExpect(model().attribute("reviewCount", 0L))
+        .andExpect(
+            model().attribute("nextReservation", org.hamcrest.Matchers.hasEntry("id", confirmed)));
+    mvc.perform(get("/provider").with(user(providerEmail).roles("PROVIDER")))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("publishedCount", 1L))
+        .andExpect(model().attribute("scheduledCount", 1L))
+        .andExpect(model().attribute("guestCount", 1L));
+    login(providerEmail);
+    long venture = ((Number) accounts.venture().get("id")).longValue();
+    db.update("update venture set verification_status='PENDING' where id=?", venture);
+    mvc.perform(get("/provider").with(user(providerEmail).roles("PROVIDER")))
+        .andExpect(status().isOk())
+        .andExpect(view().name("provider-status"))
+        .andExpect(model().attributeDoesNotExist("agenda", "guestCount", "activities"));
+  }
 }

@@ -1,32 +1,18 @@
-<!doctype html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mi emprendimiento · Uruguay Mnatural</title>
-<link rel="stylesheet" th:href="@{/css/app.css}">
-<script defer th:src="@{/js/app.js}">
-</script>
-</head>
-<body>
-<header th:replace="~{fragments :: header}">
-</header>
-<main>
-<div class="notice success" th:if="${success}" th:text="${success}">
-</div>
-<div class="section-title">
-<div>
-<p class="eyebrow">ESPACIO DEL PRESTADOR</p>
-<h1 th:text="${venture.commercial_name}">
-</h1>
-<span class="badge" th:text="${@fmt.state(venture.verification_status)}">
-</span>
-</div>
-<a class="button" th:href="@{/provider/reservations}">Consultar reservas</a>
-</div>
-<details class="panel">
-<summary>Editar datos de contacto y ubicación</summary>
-<form th:action="@{/provider/venture}" method="post">
+<!doctype html><html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi espacio · Prestador</title><link rel="stylesheet" th:href="@{/css/app.css}"><link rel="stylesheet" th:href="@{/css/workspace.css}"><script defer th:src="@{/js/app.js}"></script></head>
+<body class="workspace-page"><header th:replace="~{fragments :: workspaceHeader}"></header><div class="workspace-shell"><aside th:replace="~{fragments :: workspaceRail('PROVIDER', true)}"></aside>
+<main class="workspace-content"><div class="workspace-breadcrumb">MI ESPACIO <span>/</span> PRESTADOR</div>
+<div class="workspace-heading"><div><h1>Lo que hacés,<br><em>se vive.</em></h1><p th:text="|Hola, ${viewer.first_name}. Este es el pulso de tu emprendimiento.|"></p></div><a class="ws-button" th:href="@{/provider/activities/new}"><span aria-hidden="true">＋</span>Crear actividad</a></div>
+<div class="notice success" th:if="${success}" th:text="${success}"></div>
+<section class="workspace-stats" aria-label="Resumen del emprendimiento"><div><span class="stat-label">ACTIVIDADES PUBLICADAS</span><strong th:text="${publishedCount}"></strong><span>disponibles en el catálogo</span></div><div><span class="stat-label">PRÓXIMAS FECHAS</span><strong th:text="${scheduledCount}"></strong><span>instancias activas por comenzar</span></div><div><span class="stat-label">PERSONAS ESPERADAS</span><strong th:text="${guestCount}"></strong><span>participantes con reserva confirmada</span></div></section>
+<div class="workspace-columns"><div class="workspace-primary">
+<section class="venture-identity"><span class="venture-monogram" th:text="${#strings.substring(venture.commercial_name,0,1)}"></span><div><span class="section-overline">TU EMPRENDIMIENTO</span><h2 th:text="${venture.commercial_name}"></h2><p><svg th:replace="~{fragments :: icon('pin')}"></svg><span th:text="${venture.location_description}"></span></p></div><span class="ws-tag verified"><svg th:replace="~{fragments :: icon('check')}"></svg>Verificado</span></section>
+<div class="workspace-alert" th:if="${refundPendingCount > 0}"><svg th:replace="~{fragments :: icon('note')}"></svg><div><strong th:text="|${refundPendingCount} cancelación(es) en conciliación|"></strong><p>Los reembolsos se completan cuando el simulador confirma el resultado.</p></div><a th:href="@{/provider/reservations}">Ver reservas <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div>
+<section class="workspace-section" id="actividades"><div class="section-heading"><div><span class="section-overline">TU PROPUESTA</span><h2>Mis actividades <span class="heading-count" th:text="${#lists.size(activities)}"></span></h2></div></div>
+<div class="workspace-empty" th:if="${#lists.isEmpty(activities)}"><svg th:replace="~{fragments :: icon('compass')}"></svg><div><h3>Todo empieza por lo que sabés hacer.</h3><p>Contá de qué se trata tu experiencia, definí el precio y agregale fechas. Vos ponés el lugar; nosotros te ayudamos a que lo encuentren.</p><a class="text-link" th:href="@{/provider/activities/new}">Crear mi primera actividad <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div></div>
+<article class="activity-entry" th:each="a,loop:${activities}"><span class="activity-index" th:text="|0${loop.count}|"></span><div class="activity-entry-body"><div class="activity-entry-title"><h3 th:text="${a.name}"></h3><span class="ws-tag" th:classappend="${a.is_published ? 'verified' : 'draft'}" th:text="${a.is_published ? 'Publicada' : 'Borrador'}"></span></div><p th:text="|UYU ${a.unit_price} por persona · ${a.duration_minutes} minutos|"></p><div class="activity-entry-actions"><a th:href="@{/provider/activities/{id}/edit(id=${a.id})}">Editar actividad</a><a th:href="@{/provider/activities/{id}/instances(id=${a.id})}">Fechas y cupos <svg th:replace="~{fragments :: icon('arrow')}"></svg></a><a th:href="@{/provider/reservations(activityId=${a.id})}">Reservas</a></div></div></article>
+</section>
+<section class="workspace-section" id="contacto"><div class="section-heading"><div><span class="section-overline">PRESENTACIÓN Y CONTACTO</span><h2>Tu lugar en el mapa.</h2></div></div><div class="profile-description"><p th:text="${venture.description}"></p><div class="profile-contact"><span th:text="${venture.contact_email}"></span><span th:text="${venture.phone}"></span></div></div><details class="workspace-disclosure"><summary>Editar contacto, ubicación y descripción <span aria-hidden="true">＋</span></summary><div class="disclosure-body"><form th:action="@{/provider/venture}" method="post">
 <div class="row">
 <label>Correo comercial<input name="contactEmail" type="email" required th:value="${venture.contact_email}">
 </label>
@@ -51,30 +37,8 @@
 </textarea>
 </label>
 <button>Guardar datos</button>
-</form>
-</details>
-<div class="section-title">
-<h2>Mis actividades</h2>
-<a class="button" th:href="@{/provider/activities/new}">Nueva actividad</a>
-</div>
-<p class="empty" th:if="${#lists.isEmpty(activities)}">Creá tu primera actividad y agregale fechas.</p>
-<div class="cards">
-<article class="card card-body" th:each="a:${activities}">
-<span class="badge" th:text="${a.is_published ? 'Publicada' : 'Borrador'}">
-</span>
-<h3 th:text="${a.name}">
-</h3>
-<p th:text="|UYU ${a.unit_price} · ${a.duration_minutes} minutos|">
-</p>
-<div class="actions">
-<a th:href="@{/provider/activities/{id}/edit(id=${a.id})}">Editar</a>
-<a th:href="@{/provider/activities/{id}/instances(id=${a.id})}">Fechas y cupos</a>
-<a th:href="@{/provider/reservations(activityId=${a.id})}">Reservas</a>
-</div>
-</article>
-</div>
-</main>
-<footer th:replace="~{fragments :: footer}">
-</footer>
-</body>
-</html>
+</form></div></details></section>
+</div><aside class="workspace-aside"><section class="agenda-panel" id="agenda"><div class="section-heading"><div><span class="section-overline">LO QUE VIENE</span><h2>Tu agenda.</h2></div><svg th:replace="~{fragments :: icon('calendar')}"></svg></div><p class="aside-empty" th:if="${#lists.isEmpty(agenda)}">Tu agenda está abierta. Agregá una fecha desde tus actividades para empezar a recibir reservas.</p><a class="agenda-item" th:each="i:${agenda}" th:href="@{/provider/reservations(instanceId=${i.id})}"><span class="list-date"><strong th:text="${@fmt.day(i.starts_at)}"></strong><span th:text="${@fmt.month(i.starts_at)}"></span></span><span><strong th:text="${i.name}"></strong><small th:text="${@fmt.date(i.starts_at)}"></small><small th:text="${i.capacity == null ? i.reserved_people + ' lugares comprometidos · cupo ilimitado' : i.reserved_people + ' de ' + i.capacity + ' lugares comprometidos'}"></small></span></a></section>
+<section class="workspace-note provider-note"><span class="note-icon"><svg th:replace="~{fragments :: icon('compass')}"></svg></span><span class="section-overline">ANTES DE RECIBIRLOS</span><h2>Los detalles<br>hacen la salida.</h2><p>Revisá el punto de encuentro, el equipamiento y las condiciones de cada actividad. Una propuesta clara ayuda a elegir mejor.</p><a class="text-link" href="#actividades">Revisar mis actividades <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></section>
+<section class="workspace-help"><h3>Cuando cambian los planes.</h3><p>Si cancelás una instancia, las reservas vigentes pagadas reciben el reembolso total. Podés hacerlo desde Fechas y cupos, antes del inicio.</p><a class="text-link" th:href="@{/provider/reservations}">Consultar reservas <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></section>
+</aside></div><footer class="workspace-footer"><span>Uruguay Mnatural</span><span>Las buenas experiencias empiezan con vos.</span></footer></main></div></body></html>

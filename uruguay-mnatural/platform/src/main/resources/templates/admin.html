@@ -1,85 +1,18 @@
-<!doctype html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Administración · Uruguay Mnatural</title>
-<link rel="stylesheet" th:href="@{/css/app.css}">
-<script defer th:src="@{/js/app.js}">
-</script>
-</head>
-<body>
-<header th:replace="~{fragments :: header}">
-</header>
-<main>
-<div class="notice success" th:if="${success}" th:text="${success}">
-</div>
-<p class="eyebrow">URUGUAY MNATURAL</p>
-<h1>Administración</h1>
-<h2>Emprendimientos</h2>
-<p class="empty" th:if="${#lists.isEmpty(ventures)}">No hay emprendimientos registrados.</p>
-<details class="panel" th:each="v:${ventures}">
-<summary>
-<strong th:text="${v.commercial_name}">
-</strong> · <span th:text="${v.denial_reason != null ? 'Denegado' : @fmt.state(v.verification_status)}">
-</span>
-</summary>
-<dl>
-<dt>Responsable</dt>
-<dd th:text="|${v.first_name} ${v.last_name}|">
-</dd>
-<dt>Personería y documento</dt>
-<dd th:text="|${v.legal_type} · ${v.document ?: ''}|">
-</dd>
-<dt>Razón social y RUT</dt>
-<dd th:text="|${v.legal_name ?: ''} · ${v.tax_id ?: ''}|">
-</dd>
-<dt>Contacto comercial</dt>
-<dd th:text="|${v.contact_email} · ${v.phone}|">
-</dd>
-<dt>Ubicación</dt>
-<dd th:text="${v.location_description}">
-</dd>
-<dt>Descripción</dt>
-<dd th:text="${v.description}">
-</dd>
-</dl>
-<form th:if="${v.verification_status == 'PENDING' and v.denial_reason == null}" th:action="@{/admin/ventures/{id}/approve(id=${v.id})}" method="post">
-<button>Aprobar emprendimiento</button>
-</form>
-<p th:if="${v.denial_reason != null}" th:text="${v.denial_reason}"></p>
-<form th:if="${v.verification_status == 'PENDING' and v.denial_reason == null}" th:action="@{/admin/ventures/{id}/deny(id=${v.id})}" method="post">
-<label>Motivo de denegación<textarea name="reason" required maxlength="2000"></textarea></label>
-<button class="danger">Denegar emprendimiento</button>
-</form>
-</details>
-<div class="two-columns">
-<section th:each="kind:${ {'categories','equipment'} }">
-<h2 th:text="${kind == 'categories' ? 'Categorías' : 'Equipamiento'}">
-</h2>
-<form th:action="@{/admin/catalogs/{kind}(kind=${kind})}" method="post" class="row">
-<label>Nombre nuevo<input name="name" maxlength="150" required>
-</label>
-<button>Agregar</button>
-</form>
-<form th:each="c:${kind == 'categories' ? categories : equipmentTypes}" th:action="@{/admin/catalogs/{kind}(kind=${kind})}" method="post" class="catalog-row">
-<input type="hidden" name="id" th:value="${c.id}">
-<label th:attr="aria-label=${c.name}">
-<input name="name" maxlength="150" required th:value="${c.name}">
-</label>
-<small th:text="${c.active ? 'Activo' : 'Inactivo'}">
-</small>
-<div class="actions">
-<button class="secondary small" name="action" value="save">Guardar</button>
-<button class="secondary small" name="action" th:value="${c.active ? 'deactivate' : 'activate'}" th:text="${c.active ? 'Desactivar' : 'Activar'}">
-</button>
-<button class="danger small" name="action" value="delete" data-confirm="¿Eliminar? Si está en uso, se desactivará.">Eliminar</button>
-</div>
-</form>
-</section>
-</div>
-</main>
-<footer th:replace="~{fragments :: footer}">
-</footer>
-</body>
-</html>
+<!doctype html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi espacio · Administración</title><link rel="stylesheet" th:href="@{/css/app.css}"><link rel="stylesheet" th:href="@{/css/workspace.css}"><script defer th:src="@{/js/app.js}"></script><script defer th:src="@{/js/workspace.js}"></script></head>
+<body class="workspace-page"><header th:replace="~{fragments :: workspaceHeader}"></header><div class="workspace-shell"><aside th:replace="~{fragments :: workspaceRail('ADMIN', true)}"></aside><main class="workspace-content">
+<div class="workspace-breadcrumb">MI ESPACIO <span>/</span> ADMINISTRACIÓN</div><div class="workspace-heading"><div><h1>Detrás de cada<br><em>buena experiencia.</em></h1><p>Emprendimientos, propuestas y decisiones. Todo lo que necesita tu atención.</p></div><a class="ws-button" href="#emprendimientos">Revisar solicitudes <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div>
+<div class="notice success" th:if="${success}" th:text="${success}"></div>
+<section class="workspace-stats" aria-label="Estado de los emprendimientos"><div><span class="stat-label">POR REVISAR</span><strong th:text="${pendingVentures}"></strong><span>solicitudes pendientes</span></div><div><span class="stat-label">HABILITADOS</span><strong th:text="${verifiedVentures}"></strong><span>emprendimientos verificados</span></div><div><span class="stat-label">DENEGADOS</span><strong th:text="${deniedVentures}"></strong><span>solicitudes con decisión definitiva</span></div></section>
+<div class="workspace-columns admin-columns"><div class="workspace-primary"><section class="workspace-section" id="emprendimientos"><div class="section-heading"><div><span class="section-overline">UNA COMUNIDAD QUE CRECE</span><h2>Emprendimientos.</h2></div></div>
+<div class="workspace-filters" role="group" aria-label="Filtrar emprendimientos"><button type="button" data-venture-filter="ALL" aria-pressed="true">Todos <span th:text="${#lists.size(ventures)}"></span></button><button type="button" data-venture-filter="PENDING" aria-pressed="false">Pendientes <span th:text="${pendingVentures}"></span></button><button type="button" data-venture-filter="VERIFIED" aria-pressed="false">Verificados</button><button type="button" data-venture-filter="DENIED" aria-pressed="false">Denegados</button></div>
+<p class="filter-empty" hidden data-filter-empty role="status">No hay emprendimientos en este estado.</p>
+<div class="workspace-empty" th:if="${#lists.isEmpty(ventures)}"><svg th:replace="~{fragments :: icon('check')}"></svg><div><h3>Todo al día.</h3><p>Cuando se registre un prestador, su propuesta aparecerá acá para que puedas revisarla.</p></div></div>
+<details class="venture-review" th:each="v,loop:${ventures}" th:attr="data-venture-state=${v.denial_reason != null ? 'DENIED' : v.verification_status}" th:open="${loop.first and v.verification_status == 'PENDING' and v.denial_reason == null}">
+<summary><span class="review-monogram" th:text="${#strings.substring(v.commercial_name,0,1)}"></span><span class="review-name"><strong th:text="${v.commercial_name}"></strong><small th:text="|${v.first_name} ${v.last_name} · ${v.legal_type == 'LEGAL' ? 'Persona jurídica' : 'Persona física'}|"></small></span><span class="ws-tag" th:attr="data-state=${v.denial_reason != null ? 'DENIED' : v.verification_status}" th:text="${v.denial_reason != null ? 'Denegado' : @fmt.state(v.verification_status)}"></span><span class="review-toggle" aria-hidden="true">＋</span></summary>
+<div class="venture-review-body"><p class="review-description" th:text="${v.description}"></p><dl class="review-data"><div><dt>CONTACTO COMERCIAL</dt><dd th:text="${v.contact_email}"></dd><dd th:text="${v.phone}"></dd></div><div><dt>UBICACIÓN</dt><dd th:text="${v.location_description}"></dd></div><div th:if="${v.legal_type == 'LEGAL'}"><dt>RAZÓN SOCIAL Y RUT</dt><dd th:text="${v.legal_name}"></dd><dd th:text="${v.tax_id}"></dd></div><div th:if="${v.legal_type == 'PHYSICAL'}"><dt>DOCUMENTO DEL RESPONSABLE</dt><dd th:text="${v.document}"></dd></div></dl>
+<div class="denial-reason" th:if="${v.denial_reason != null}"><span class="section-overline">MOTIVO DE DENEGACIÓN</span><p th:text="${v.denial_reason}"></p></div>
+<div class="review-decisions" th:if="${v.verification_status == 'PENDING' and v.denial_reason == null}"><form th:action="@{/admin/ventures/{id}/approve(id=${v.id})}" method="post"><p>La habilitación le permite gestionar y publicar sus actividades.</p><button class="ws-button"><svg th:replace="~{fragments :: icon('check')}"></svg>Aprobar emprendimiento</button></form><details class="deny-disclosure"><summary>Denegar solicitud</summary><form th:action="@{/admin/ventures/{id}/deny(id=${v.id})}" method="post"><label>Motivo de denegación<textarea name="reason" required maxlength="2000" placeholder="Explicá el motivo de la decisión."></textarea></label><p>El prestador verá este mensaje. La denegación es definitiva.</p><button class="danger">Denegar emprendimiento</button></form></details></div>
+</div></details></section></div>
+<aside class="workspace-aside"><section class="workspace-note admin-note"><span class="note-icon"><svg th:replace="~{fragments :: icon('check')}"></svg></span><span class="section-overline">EL CRITERIO IMPORTA</span><h2>Una mirada<br>antes de abrir.</h2><p>Revisá los datos del responsable, el contacto y la descripción antes de habilitar un emprendimiento.</p><div class="note-rule"><strong>Se verifica al emprendimiento.</strong><p>Las actividades las gestiona su prestador una vez habilitado.</p></div></section><section class="workspace-help"><h3>Decisiones con contexto.</h3><p>Si denegás una solicitud, dejá un motivo claro. El prestador podrá leerlo en su espacio y no podrá volver a solicitar la verificación.</p></section></aside></div>
+<section class="workspace-section" id="catalogos"><div class="section-heading"><div><span class="section-overline">LA BASE DEL CATÁLOGO</span><h2>Cómo se encuentran las experiencias.</h2></div><span class="section-note">Categorías y equipamiento</span></div><div class="catalog-grid"><details class="workspace-catalog" th:each="kind:${ {'categories','equipment'} }"><summary><svg th:replace="~{fragments :: icon('note')}"></svg><span th:text="${kind == 'categories' ? 'Categorías' : 'Equipamiento'}"></span><span class="heading-count" th:text="${#lists.size(kind == 'categories' ? categories : equipmentTypes)}"></span><span class="catalog-toggle">＋</span></summary><div class="catalog-body"><p>Los elementos en uso se desactivan para conservar el historial.</p><form class="ws-catalog-create" th:action="@{/admin/catalogs/{kind}(kind=${kind})}" method="post"><label>Nuevo elemento<input name="name" maxlength="150" required placeholder="Nombre del elemento"></label><button>Agregar</button></form><form class="ws-catalog-row" th:each="c:${kind == 'categories' ? categories : equipmentTypes}" th:action="@{/admin/catalogs/{kind}(kind=${kind})}" method="post"><input type="hidden" name="id" th:value="${c.id}"><label th:attr="aria-label=${c.name}"><input name="name" maxlength="150" required th:value="${c.name}"></label><span class="catalog-state" th:text="${c.active ? 'Activo' : 'Inactivo'}"></span><div class="actions"><button class="secondary small" name="action" value="save">Guardar</button><button class="secondary small" name="action" th:value="${c.active ? 'deactivate' : 'activate'}" th:text="${c.active ? 'Desactivar' : 'Activar'}"></button><button class="danger small" name="action" value="delete" data-confirm="¿Eliminar? Si está en uso, se desactivará.">Eliminar</button></div></form></div></details></div></section>
+<footer class="workspace-footer"><span>Uruguay Mnatural</span><span>El cuidado también se gestiona.</span></footer></main></div></body></html>

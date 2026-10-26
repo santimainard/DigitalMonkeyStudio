@@ -24,6 +24,7 @@ public class WebController {
   private final ReservationTransactions reservations;
   private final Payments payments;
   private final CancellationTransactions cancellations;
+  private final WorkspaceSummary workspace;
 
   public WebController(
       Database db,
@@ -31,13 +32,15 @@ public class WebController {
       Tourism tourism,
       ReservationTransactions reservations,
       Payments payments,
-      CancellationTransactions cancellations) {
+      CancellationTransactions cancellations,
+      WorkspaceSummary workspace) {
     this.db = db;
     this.accounts = accounts;
     this.tourism = tourism;
     this.reservations = reservations;
     this.payments = payments;
     this.cancellations = cancellations;
+    this.workspace = workspace;
   }
 
   @InitBinder
@@ -190,6 +193,7 @@ public class WebController {
   String history(@RequestParam(defaultValue = "0") int page, Model m) {
     Tourism.page(page);
     reservations.complete();
+    workspace.tourist(m);
     long total = db.count("select count(*) from reservation where tourist_id=?", accounts.id());
     m.addAttribute(
         "result",
@@ -246,6 +250,7 @@ public class WebController {
     var venture = accounts.venture();
     m.addAttribute("venture", venture);
     if (!"VERIFIED".equals(venture.get("verification_status"))) return "provider-status";
+    workspace.provider(m);
     m.addAttribute(
         "activities",
         db.list(
@@ -396,11 +401,23 @@ public class WebController {
 
   @GetMapping("/admin")
   String admin(Model m) {
+    accounts.role("ADMIN");
+    m.addAttribute(
+        "pendingVentures",
+        db.count(
+            "select count(*) from venture where verification_status='PENDING' and denial_reason is"
+                + " null"));
+    m.addAttribute(
+        "verifiedVentures",
+        db.count("select count(*) from venture where verification_status='VERIFIED'"));
+    m.addAttribute(
+        "deniedVentures", db.count("select count(*) from venture where denial_reason is not null"));
     m.addAttribute(
         "ventures",
         db.list(
             "select v.*,u.first_name,u.last_name,u.document from venture v join app_user u on"
-                + " u.id=v.owner_id order by v.verification_status,v.id"));
+                + " u.id=v.owner_id order by case when v.verification_status='PENDING' and"
+                + " v.denial_reason is null then 0 else 1 end,v.id desc"));
     return "admin";
   }
 
