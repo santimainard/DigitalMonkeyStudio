@@ -67,6 +67,8 @@ public class SecurityConfig {
                     .hasRole("TOURIST")
                     .requestMatchers("/admin/**")
                     .hasRole("ADMIN")
+                    .requestMatchers("/provider/reapply")
+                    .denyAll()
                     .requestMatchers("/provider/**")
                     .hasRole("PROVIDER")
                     .requestMatchers("/tourist/**", "/api/v1/reservations/**")

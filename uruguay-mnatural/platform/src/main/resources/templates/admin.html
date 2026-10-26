@@ -50,7 +50,6 @@
 <p th:if="${v.denial_reason != null}" th:text="${v.denial_reason}"></p>
 <form th:if="${v.verification_status == 'PENDING' and v.denial_reason == null}" th:action="@{/admin/ventures/{id}/deny(id=${v.id})}" method="post">
 <label>Motivo de denegación<textarea name="reason" required maxlength="2000"></textarea></label>
-<label class="check"><input type="checkbox" name="allowRetry" value="true">Permitir una nueva solicitud</label>
 <button class="danger">Denegar emprendimiento</button>
 </form>
 </details>

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import uy.edu.tic.platform.domain.*;
 import uy.edu.tic.platform.dto.Forms.*;
+import uy.edu.tic.platform.dto.RegistrationChecks;
 import uy.edu.tic.platform.repository.Database;
 import uy.edu.tic.platform.service.*;
 
@@ -118,11 +119,18 @@ public class WebController {
       @Valid @ModelAttribute("form") Registration f,
       BindingResult errors,
       RedirectAttributes flash) {
+    RegistrationChecks.errors(f)
+        .forEach(
+            (field, message) -> {
+              if (!errors.hasFieldErrors(field)) errors.rejectValue(field, "registration", message);
+            });
     if (errors.hasErrors()) return "register";
     try {
       accounts.register(f);
     } catch (BusinessException e) {
-      errors.reject("registration", e.getMessage());
+      if ("EMAIL_ALREADY_USED".equals(e.code))
+        errors.rejectValue("email", "registration", e.getMessage());
+      else errors.reject("registration", e.getMessage());
       return "register";
     }
     flash.addFlashAttribute("success", "Cuenta creada. Ya podés iniciar sesión.");
@@ -224,22 +232,12 @@ public class WebController {
   @ModelAttribute
   void providerGate(jakarta.servlet.http.HttpServletRequest request) {
     String path = request.getRequestURI().substring(request.getContextPath().length());
-    if (path.startsWith("/provider/") && !path.equals("/provider/reapply"))
-      accounts.verifiedProvider();
-  }
-
-  @PostMapping("/provider/reapply")
-  String reapply() {
-    accounts.reapply();
-    return "redirect:/provider";
+    if (path.startsWith("/provider/")) accounts.verifiedProvider();
   }
 
   @PostMapping("/admin/ventures/{id}/deny")
-  String deny(
-      @PathVariable long id,
-      @RequestParam String reason,
-      @RequestParam(defaultValue = "false") boolean allowRetry) {
-    accounts.deny(id, reason, allowRetry);
+  String deny(@PathVariable long id, @RequestParam String reason) {
+    accounts.deny(id, reason);
     return "redirect:/admin";
   }
 

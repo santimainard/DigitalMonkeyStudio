@@ -65,7 +65,7 @@ class PlatformIntegrationTest {
     p.commercialName = "Test " + tag;
     p.legalType = "PHYSICAL";
     p.contactEmail = providerEmail;
-    p.phone = "1234";
+    p.phone = "099123456";
     p.departmentId = 10L;
     p.localityId = 10L;
     p.locationDescription = "Montevideo";
@@ -347,23 +347,22 @@ class PlatformIntegrationTest {
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrlPattern("**/login"));
     login("admin@example.test");
-    assertThrows(BusinessException.class, () -> accounts.deny(venture, " ", true));
-    accounts.deny(venture, "Faltan datos", false);
-    login(providerEmail);
-    assertThrows(
-        org.springframework.security.access.AccessDeniedException.class, () -> accounts.reapply());
+    assertThrows(BusinessException.class, () -> accounts.deny(venture, " "));
+    accounts.deny(venture, "Faltan datos");
     mvc.perform(get("/provider").with(user(providerEmail).roles("PROVIDER")))
         .andExpect(status().isOk())
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("Faltan datos")));
-    db.update("update venture set allow_reapply=true where id=?", venture);
-    login(providerEmail);
-    accounts.reapply();
-    assertNull(accounts.venture().get("denial_reason"));
-    assertFalse(accounts.providerEnabled());
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Faltan datos")))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("Volver a solicitar"))));
+    mvc.perform(post("/provider/reapply").with(user(providerEmail).roles("PROVIDER")).with(csrf()))
+        .andExpect(status().isForbidden());
+    assertEquals(
+        "Faltan datos", db.one("select * from venture where id=?", venture).get("denial_reason"));
     login("admin@example.test");
-    accounts.approve(venture);
-    login(providerEmail);
-    assertNotNull(tourism.owned(activity));
+    assertThrows(BusinessException.class, () -> accounts.approve(venture));
   }
 
   @Test
@@ -531,7 +530,7 @@ class PlatformIntegrationTest {
                 .param("legalType", "PHYSICAL")
                 .param("commercialName", "Emprendimiento de prueba")
                 .param("contactEmail", email)
-                .param("phone", "1234")
+                .param("phone", "099123456")
                 .param("departmentId", "10")
                 .param("localityId", "10")
                 .param("locationDescription", "Montevideo")
@@ -568,5 +567,86 @@ class PlatformIntegrationTest {
         }
       }
     }
+  }
+
+  @Test
+  void invalidRegistrationFieldsHaveInlineErrorsAndDoNotCreateAccounts() throws Exception {
+    String email = "validation-" + UUID.randomUUID() + "@example.test";
+    mvc.perform(
+            post("/register")
+                .with(anonymous())
+                .with(csrf())
+                .param("role", "PROVIDER")
+                .param("legalType", "LEGAL")
+                .param("firstName", "Ana123")
+                .param("lastName", "Pérez")
+                .param("email", email)
+                .param("password", "TestOnly123!")
+                .param("passwordConfirmation", "Different123!")
+                .param("commercialName", "Prueba")
+                .param("contactEmail", "sin-arroba")
+                .param("phone", "099abc456")
+                .param("departmentId", "10")
+                .param("localityId", "10")
+                .param("locationDescription", "Montevideo")
+                .param("description", "Prueba")
+                .param("taxId", "123")
+                .param("legalName", ""))
+        .andExpect(status().isOk())
+        .andExpect(view().name("register"))
+        .andExpect(
+            model()
+                .attributeHasFieldErrors(
+                    "form",
+                    "firstName",
+                    "passwordConfirmation",
+                    "contactEmail",
+                    "phone",
+                    "taxId",
+                    "legalName"))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("field-error")))
+        .andExpect(
+            content()
+                .string(org.hamcrest.Matchers.containsString("Las contraseñas no coinciden.")));
+    assertEquals(0, db.count("select count(*) from app_user where email=?", email));
+  }
+
+  @Test
+  void legalFieldsAreRequiredOnlyForLegalPersonsAndIgnoredForPhysicalPersons() throws Exception {
+    String email = "physical-" + UUID.randomUUID() + "@example.test";
+    var r = new Registration();
+    r.firstName = "María-José";
+    r.lastName = "O’Neill";
+    r.email = email;
+    r.document = "ABC-123";
+    r.password = "TestOnly123!";
+    r.passwordConfirmation = r.password;
+    r.role = "PROVIDER";
+    r.legalType = "PHYSICAL";
+    r.commercialName = "Prueba";
+    r.contactEmail = email;
+    r.phone = "+598 (99) 123-456";
+    r.departmentId = 10L;
+    r.localityId = 10L;
+    r.locationDescription = "Montevideo";
+    r.description = "Prueba";
+    r.legalName = "No corresponde";
+    r.taxId = "invalid";
+    long owner = accounts.register(r);
+    var v = db.one("select * from venture where owner_id=?", owner);
+    assertNull(v.get("legal_name"));
+    assertNull(v.get("tax_id"));
+    r.email = "legal-" + UUID.randomUUID() + "@example.test";
+    r.legalType = "LEGAL";
+    r.legalName = "";
+    assertThrows(BusinessException.class, () -> accounts.register(r));
+    assertEquals(0, db.count("select count(*) from app_user where email=?", r.email));
+    r.legalName = "Razón social de prueba";
+    r.taxId = "123456789012";
+    assertNotNull(accounts.register(r));
+    mvc.perform(get("/register?role=PROVIDER").with(anonymous()))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("data-legal-fields hidden")));
   }
 }

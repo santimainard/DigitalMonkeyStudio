@@ -6,28 +6,28 @@ import java.util.*;
 
 public final class Forms {
   public static class Registration {
-    @NotBlank
-    @Size(max = 80)
+    @NotBlank(message = "Completá este campo.")
+    @Size(max = 80, message = "Usá hasta 80 caracteres.")
     public String firstName;
 
-    @NotBlank
-    @Size(max = 80)
+    @NotBlank(message = "Completá este campo.")
+    @Size(max = 80, message = "Usá hasta 80 caracteres.")
     public String lastName;
 
-    @NotBlank
-    @Email
-    @Size(max = 254)
+    @NotBlank(message = "Completá este campo.")
+    @Email(message = "Ingresá un correo válido, como nombre@dominio.com.")
+    @Size(max = 254, message = "Usá hasta 254 caracteres.")
     public String email;
 
-    @Size(max = 40)
+    @Size(max = 40, message = "Usá hasta 40 caracteres.")
     public String document;
 
-    @NotBlank
-    @Size(min = 8, max = 72)
+    @NotBlank(message = "Completá este campo.")
+    @Size(min = 8, max = 72, message = "Usá entre 8 y 72 caracteres para la contraseña.")
     public String password;
 
     @NotBlank(message = "Repetí la contraseña.")
-    @Size(max = 72)
+    @Size(max = 72, message = "Usá hasta 72 caracteres.")
     public String passwordConfirmation;
 
     public String role = "TOURIST";
