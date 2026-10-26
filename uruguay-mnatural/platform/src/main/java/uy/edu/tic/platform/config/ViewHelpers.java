@@ -39,7 +39,9 @@ public class ViewHelpers {
       case "COMPLETED" -> "Finalizada";
       case "REJECTED" -> "Rechazada";
       case "EXPIRED" -> "Vencida";
-      case "PAYMENT_CANCELLED", "CANCELLED" -> "Pago cancelado";
+      case "PAYMENT_CANCELLED", "CANCELLED" -> "Cancelada";
+      case "REFUNDED" -> "Reembolso procesado";
+      case "DENIED" -> "Denegado";
       case "APPROVED" -> "Aprobado";
       case "VERIFIED" -> "Verificado";
       case "PENDING" -> "Pendiente";

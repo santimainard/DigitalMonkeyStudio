@@ -97,6 +97,22 @@ public class PaymentController {
     return p;
   }
 
+  @PostMapping("/payments/{id}/cancellation")
+  @ResponseBody
+  Object cancel(
+      @RequestHeader(value = "X-API-Key", required = false) String token,
+      @PathVariable UUID id,
+      @RequestBody Map<String, Integer> body)
+      throws InterruptedException {
+    authorize(token);
+    available();
+    if (body.get("refundPercent") == null)
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+    var result = store.cancel(id, body.get("refundPercent"));
+    if (Set.of("TIMEOUT", "LOST_RESPONSE").contains(store.mode())) Thread.sleep(7000);
+    return result;
+  }
+
   @PostMapping("/simulation/mode")
   @ResponseBody
   Object mode(

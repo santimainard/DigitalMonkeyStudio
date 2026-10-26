@@ -21,6 +21,7 @@ public class ApiController {
   private final Accounts accounts;
   private final ReservationTransactions reservations;
   private final Payments payments;
+  private final CancellationTransactions cancellations;
   private final String webhook;
 
   public ApiController(
@@ -29,12 +30,14 @@ public class ApiController {
       Accounts accounts,
       ReservationTransactions reservations,
       Payments payments,
+      CancellationTransactions cancellations,
       @Value("${payment.webhook-token}") String webhook) {
     this.db = db;
     this.tourism = tourism;
     this.accounts = accounts;
     this.reservations = reservations;
     this.payments = payments;
+    this.cancellations = cancellations;
     this.webhook = webhook;
   }
 
@@ -63,8 +66,9 @@ public class ApiController {
     return camel(
         Tourism.pagination(
             db.list(
-                "select"
-                    + " v.id,v.commercial_name,v.description,v.verification_status,v.contact_email,v.phone,v.department_id,d.name"
+                "select v.id,v.commercial_name,v.description,case when v.denial_reason is not null"
+                    + " then 'DENIED' else v.verification_status end"
+                    + " verification_status,v.contact_email,v.phone,v.department_id,d.name"
                     + " department_name,v.locality_id,l.name locality_name,v.location_description"
                     + " from venture v join department d on d.id=v.department_id join locality l on"
                     + " l.id=v.locality_id"
@@ -161,10 +165,19 @@ public class ApiController {
 
   @PatchMapping("/admin/ventures/{id}/verification")
   Object approve(@PathVariable long id, @RequestBody Map<String, String> body) {
+    if ("DENIED".equals(body.get("status"))) {
+      accounts.deny(id, body.get("reason"), "true".equals(body.get("allowRetry")));
+      return Map.of("id", id, "status", "DENIED");
+    }
     if (!"VERIFIED".equals(body.get("status")))
-      throw new BusinessException("INVALID_INPUT", "Solo se admite VERIFIED.");
+      throw new BusinessException("INVALID_INPUT", "Solo se admite VERIFIED o DENIED.");
     accounts.approve(id);
-    return Map.of("id", id, "status", "VERIFIED");
+    var v = db.one("select * from venture where id=?", id);
+    return Map.of(
+        "id",
+        id,
+        "status",
+        v.get("denial_reason") != null ? "DENIED" : v.get("verification_status"));
   }
 
   @PostMapping("/reservations")
@@ -177,6 +190,13 @@ public class ApiController {
 
   @GetMapping("/reservations/{id}")
   Object reservation(@PathVariable UUID id) {
+    return camel(reservations.detail(id));
+  }
+
+  @PostMapping("/reservations/{id}/cancellation")
+  Object cancel(@PathVariable UUID id) {
+    cancellations.tourist(id);
+    payments.settleCancellation(id);
     return camel(reservations.detail(id));
   }
 

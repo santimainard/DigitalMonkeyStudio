@@ -26,7 +26,7 @@
 </form>
 <p class="empty" th:if="${#lists.isEmpty(instances)}">No hay fechas programadas.</p>
 <article class="panel" th:each="i:${instances}">
-<p th:text="|Finaliza ${@fmt.date(i.ends_at)} · ${i.active ? 'Activa' : 'Eliminada'}|">
+<p th:text="|Finaliza ${@fmt.date(i.ends_at)} · ${i.cancelled ? 'Cancelada' : (i.active ? 'Activa' : 'Eliminada')}|">
 </p>
 <p th:text="${i.available == null ? 'Cupo ilimitado' : i.available + ' lugares libres'}">
 </p>
@@ -39,6 +39,9 @@
 <button>Guardar</button>
 <button class="danger" name="delete" value="true" data-confirm="¿Eliminar esta fecha?">Eliminar</button>
 </form>
+<form th:if="${i.active}" th:action="@{/provider/activities/{id}/instances/{instanceId}/cancel(id=${activity.id},instanceId=${i.id})}" method="post">
+<button class="danger" data-confirm="¿Cancelar esta instancia? Se devolverá el 100 % a las reservas pagadas.">Cancelar instancia y reembolsar</button></form>
+<p th:if="${i.cancelled}">La instancia está cancelada. Consultá las reservas de esta fecha para ver los reembolsos y las conciliaciones pendientes.</p>
 <a th:href="@{/provider/reservations(instanceId=${i.id})}">Consultar reservas de esta fecha</a>
 </article>
 </main>

@@ -91,6 +91,11 @@ public class ReservationTransactions {
         id,
         id.toString(),
         amount);
+    db.update(
+        "update reservation set full_refund_minutes=?,late_refund_percent=? where id=?",
+        a.get("full_refund_minutes"),
+        a.get("late_refund_percent"),
+        id);
     return id;
   }
 
@@ -183,9 +188,19 @@ public class ReservationTransactions {
             id);
     if (((Number) r.get("tourist_id")).longValue() != accounts.id())
       throw new AccessDeniedException("Reserva ajena.");
+    var cancellation = db.optional("select * from cancellation where reservation_id=?", id);
+    r.put("cancellation", cancellation.orElse(null));
+    r.put(
+        "can_cancel",
+        clock.instant().isBefore(instant(r.get("starts_at_snapshot")))
+            && Set.of("PENDING_PAYMENT", "PAYMENT_UNCERTAIN", "CONFIRMED")
+                .contains(r.get("status").toString())
+            && cancellation.isEmpty());
+    r.put("refund_percent", CancellationTransactions.refundPercent(r, clock.instant()));
     r.put(
         "can_review",
-        canReview(
+        cancellation.isEmpty()
+            && canReview(
                 clock.instant(),
                 instant(r.get("ends_at_snapshot")),
                 r.get("payment_status").toString())
@@ -201,7 +216,8 @@ public class ReservationTransactions {
       throw new AccessDeniedException("Reserva ajena.");
     String payment =
         db.one("select status from payment where reservation_id=?", id).get("status").toString();
-    if (!canReview(clock.instant(), instant(r.get("ends_at_snapshot")), payment))
+    if (db.count("select count(*) from cancellation where reservation_id=?", id) > 0
+        || !canReview(clock.instant(), instant(r.get("ends_at_snapshot")), payment))
       throw new BusinessException(
           "REVIEW_NOT_ALLOWED", "La actividad debe haber terminado y estar pagada.");
     if (rating < 1 || rating > 5 || comment != null && comment.length() > 2000)

@@ -1,0 +1,6 @@
+<!doctype html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><title>Mi espacio</title><link rel="stylesheet" th:href="@{/css/app.css}"></head><body>
+<header th:replace="~{fragments :: header}"></header><main><h1>Mi espacio</h1><h2 th:text="${venture.commercial_name}"></h2>
+<p th:if="${venture.denial_reason == null}">Tu solicitud está pendiente de habilitación. Las funciones del prestador estarán disponibles cuando un administrador apruebe tu emprendimiento.</p>
+<section th:if="${venture.denial_reason != null}"><h2>Solicitud denegada</h2><p th:text="${venture.denial_reason}"></p>
+<form th:if="${venture.allow_reapply}" th:action="@{/provider/reapply}" method="post"><button>Volver a solicitar habilitación</button></form>
+<p th:unless="${venture.allow_reapply}">El administrador no habilitó una nueva solicitud.</p></section></main></body></html>

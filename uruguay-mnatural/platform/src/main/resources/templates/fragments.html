@@ -2,10 +2,10 @@
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <body>
 <header th:fragment="header">
-<a class="brand" th:href="@{/}">UM<span>Uruguay Mnatural</span>
+<a class="brand" th:href="@{/dashboard}">UM<span>Uruguay Mnatural</span>
 </a>
 <nav aria-label="Principal">
-<a th:href="@{/}">Explorar</a>
+<a th:if="${viewer != null and viewer.role == 'TOURIST'}" th:href="@{/explore}">Explorar</a>
 <th:block th:if="${viewer == null}">
 <a th:href="@{/register}">Crear cuenta</a>
 <a class="button small" th:href="@{/login}">Ingresar</a>

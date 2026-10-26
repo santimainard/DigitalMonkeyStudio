@@ -50,8 +50,6 @@ public class SecurityConfig {
     http.authorizeHttpRequests(
             a ->
                 a.requestMatchers(
-                        "/",
-                        "/activities/**",
                         "/register",
                         "/login",
                         "/css/**",
@@ -63,6 +61,10 @@ public class SecurityConfig {
                     .requestMatchers(
                         "/api/v1/activities/**", "/api/v1/ventures", "/api/v1/payment-events")
                     .permitAll()
+                    .requestMatchers("/")
+                    .authenticated()
+                    .requestMatchers("/explore", "/activities/**")
+                    .hasRole("TOURIST")
                     .requestMatchers("/admin/**")
                     .hasRole("ADMIN")
                     .requestMatchers("/provider/**")
@@ -71,20 +73,25 @@ public class SecurityConfig {
                     .hasRole("TOURIST")
                     .anyRequest()
                     .authenticated())
-        .formLogin(f -> f.loginPage("/login").defaultSuccessUrl("/dashboard", false).permitAll())
+        .formLogin(f -> f.loginPage("/login").defaultSuccessUrl("/dashboard", true).permitAll())
         .logout(l -> l.logoutSuccessUrl("/"))
         .csrf(c -> c.ignoringRequestMatchers("/api/v1/payment-events"))
         .exceptionHandling(
             e ->
                 e.defaultAuthenticationEntryPointFor(
-                    (req, res, ex) -> {
-                      res.setStatus(401);
-                      res.setCharacterEncoding("UTF-8");
-                      res.setContentType("application/json");
-                      res.getWriter()
-                          .write("{\"code\":\"UNAUTHENTICATED\",\"message\":\"Iniciá sesión\"}");
-                    },
-                    req -> req.getRequestURI().startsWith("/api/")));
+                        (req, res, ex) -> {
+                          res.setStatus(401);
+                          res.setCharacterEncoding("UTF-8");
+                          res.setContentType("application/json");
+                          res.getWriter()
+                              .write(
+                                  "{\"code\":\"UNAUTHENTICATED\",\"message\":\"Iniciá sesión\"}");
+                        },
+                        req -> req.getRequestURI().startsWith("/api/"))
+                    .defaultAuthenticationEntryPointFor(
+                        new org.springframework.security.web.authentication
+                            .LoginUrlAuthenticationEntryPoint("/login"),
+                        req -> !req.getRequestURI().startsWith("/api/")));
     return http.build();
   }
 }

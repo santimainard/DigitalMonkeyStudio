@@ -50,7 +50,7 @@ public class Tourism {
   }
 
   public Map<String, Object> owned(long id) {
-    accounts.role("PROVIDER");
+    accounts.verifiedProvider();
     var a = activity(id, false);
     if (((Number) a.get("owner_id")).longValue() != accounts.id())
       throw new AccessDeniedException("Actividad ajena.");
@@ -212,7 +212,7 @@ public class Tourism {
 
   @Transactional
   public long saveActivity(Long id, ActivityForm f) {
-    accounts.role("PROVIDER");
+    accounts.verifiedProvider();
     var v = accounts.venture();
     if (id != null) owned(id);
     accounts.location(f.departmentId, f.localityId);
@@ -283,6 +283,16 @@ public class Tourism {
           f.conditions.strip(),
           f.published,
           id);
+    if (f.fullRefundMinutes < 0
+        || f.fullRefundMinutes > 525600
+        || f.lateRefundPercent < 0
+        || f.lateRefundPercent > 100)
+      throw new BusinessException("INVALID_INPUT", "Política de reembolso inválida.");
+    db.update(
+        "update activity set full_refund_minutes=?,late_refund_percent=? where id=?",
+        f.fullRefundMinutes,
+        f.lateRefundPercent,
+        id);
     db.update("delete from activity_category where activity_id=?", id);
     for (long c : cats) db.update("insert into activity_category values(?,?)", id, c);
     db.update("delete from activity_equipment where activity_id=?", id);
@@ -314,6 +324,8 @@ public class Tourism {
             "select * from activity_instance where id=? and activity_id=? for update",
             id,
             activityId);
+    if (Boolean.TRUE.equals(i.get("cancelled")))
+      throw new BusinessException("INVALID_INPUT", "La instancia fue cancelada.");
     if (!instant(i.get("starts_at")).isAfter(clock.instant()))
       throw new BusinessException("INVALID_INPUT", "No se modifica una instancia pasada.");
     long pending =

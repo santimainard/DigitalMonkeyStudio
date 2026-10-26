@@ -50,7 +50,7 @@
 <dd th:text="${@fmt.state(reservation.payment_status)}">
 </dd>
 </dl>
-<div th:if="${reservation.status == 'PENDING_PAYMENT' or reservation.status == 'PAYMENT_UNCERTAIN'}" class="panel">
+<div th:if="${reservation.cancellation == null and (reservation.status == 'PENDING_PAYMENT' or reservation.status == 'PAYMENT_UNCERTAIN')}" class="panel">
 <p th:if="${reservation.status == 'PAYMENT_UNCERTAIN'}">Estamos comprobando el pago. Conservamos tus lugares mientras verificamos el resultado. No crees otra reserva para volver a pagar.</p>
 <p th:text="|Plazo para pagar: ${@fmt.date(reservation.expires_at)}|">
 </p>
@@ -59,6 +59,16 @@
 <button class="secondary">Actualizar estado</button>
 </form>
 </div>
+<section class="panel" th:if="${reservation.cancellation != null}">
+<h2>Cancelación</h2><p th:text="${reservation.cancellation.completed_at == null ? 'Pendiente de conciliación. No se ha confirmado el reembolso.' : 'Cancelación completada.'}"></p>
+<p th:text="|Solicitada por: ${reservation.cancellation.requested_by == 'PROVIDER' ? 'prestador' : 'turista'} · Reembolso sobre el pago: ${reservation.cancellation.refund_percent} %| "></p>
+<p th:if="${reservation.cancellation.completed_at != null}" th:text="|Reembolsado: UYU ${reservation.cancellation.refunded_amount}|"></p>
+<p th:if="${reservation.cancellation.completed_at != null and reservation.payment_status == 'REFUNDED'}" th:text="|Retenido: UYU ${reservation.total_amount - reservation.cancellation.refunded_amount}|"></p>
+<form th:if="${reservation.cancellation.completed_at == null}" th:action="@{/tourist/reservations/{id}/refresh(id=${reservation.id})}" method="post"><button>Actualizar cancelación</button></form>
+</section>
+<form th:if="${reservation.can_cancel}" th:action="@{/tourist/reservations/{id}/cancel(id=${reservation.id})}" method="post">
+<p th:text="|Si cancelás ahora se devuelve el ${reservation.refund_percent} % del importe pagado.|"></p>
+<button class="danger" data-confirm="¿Confirmás cancelar esta reserva con el porcentaje indicado?">Cancelar reserva</button></form>
 <button class="secondary print" th:if="${reservation.code != null}" onclick="window.print()">Imprimir constancia</button>
 <form th:if="${reservation.can_review}" th:action="@{/tourist/reservations/{id}/review(id=${reservation.id})}" method="post">
 <h2>¿Cómo fue tu experiencia?</h2>

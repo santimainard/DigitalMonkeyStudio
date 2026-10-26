@@ -14,7 +14,7 @@
 <main>
 <div class="notice success" th:if="${success}" th:text="${success}">
 </div>
-<a th:href="@{/}">← Volver al catálogo</a>
+<a th:href="@{/explore}">← Volver al catálogo</a>
 <section class="detail-head">
 <p class="eyebrow" th:text="|${activity.department_name} / ${activity.locality_name}|">
 </p>
@@ -91,6 +91,7 @@
 </article>
 </aside>
 </div>
+<p th:text="|Cancelación antes del inicio: reembolso total con al menos ${activity.full_refund_minutes} minutos de anticipación; con menos anticipación, ${activity.late_refund_percent} %. Si cancela el prestador, se devuelve el 100 %.|"></p>
 </main>
 <footer th:replace="~{fragments :: footer}">
 </footer>

@@ -40,6 +40,43 @@ public class Accounts {
       throw new AccessDeniedException("No tenés permiso para esta acción.");
   }
 
+  public boolean providerEnabled() {
+    return "VERIFIED".equals(venture().get("verification_status"));
+  }
+
+  public void verifiedProvider() {
+    role("PROVIDER");
+    if (!providerEnabled())
+      throw new AccessDeniedException(
+          "Tu emprendimiento debe ser habilitado por un administrador.");
+  }
+
+  @Transactional
+  public void deny(long ventureId, String reason, boolean allowRetry) {
+    role("ADMIN");
+    var v = db.one("select * from venture where id=? for update", ventureId);
+    if (!"PENDING".equals(v.get("verification_status")) || v.get("denial_reason") != null)
+      throw new BusinessException(
+          "INVALID_INPUT", "Solo se puede denegar una solicitud pendiente.");
+    db.update(
+        "update venture set"
+            + " denial_reason=?,allow_reapply=?,reviewed_by=?,reviewed_at=current_timestamp where"
+            + " id=?",
+        text(reason, 2000, "motivo de denegación"),
+        allowRetry,
+        id(),
+        ventureId);
+  }
+
+  @Transactional
+  public void reapply() {
+    role("PROVIDER");
+    var v = db.one("select * from venture where owner_id=? for update", id());
+    if (v.get("denial_reason") == null || !Boolean.TRUE.equals(v.get("allow_reapply")))
+      throw new AccessDeniedException("El administrador no permitió una nueva solicitud.");
+    db.update("update venture set denial_reason=null,allow_reapply=false where id=?", v.get("id"));
+  }
+
   public static String text(String value, int max, String label) {
     if (value == null || value.isBlank() || value.strip().length() > max)
       throw new BusinessException("INVALID_INPUT", "Revisá el campo " + label + ".");
@@ -48,8 +85,10 @@ public class Accounts {
 
   private static String email(String value, String label) {
     String result = text(value, 254, label);
-    if (!result.matches("[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+"))
-      throw new BusinessException("INVALID_INPUT", "Revisá el " + label + ": usá un formato como nombre@dominio.com.");
+    if (!result.matches(
+        "[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+"))
+      throw new BusinessException(
+          "INVALID_INPUT", "Revisá el " + label + ": usá un formato como nombre@dominio.com.");
     return result;
   }
 
@@ -74,6 +113,8 @@ public class Accounts {
           "INVALID_INPUT", "La contraseña necesita al menos 8 caracteres y hasta 72 bytes.");
     if (f.role.equals("TOURIST") || "PHYSICAL".equals(f.legalType))
       text(f.document, 40, "documento");
+    if (!f.password.equals(f.passwordConfirmation))
+      throw new BusinessException("INVALID_INPUT", "Las contraseñas no coinciden.");
     long userId =
         db.insert(
             "insert into app_user(first_name,last_name,email,document,password_hash,role)"
@@ -91,7 +132,9 @@ public class Accounts {
       if (f.legalType.equals("LEGAL")) {
         text(f.legalName, 200, "razón social");
         if (f.taxId == null || !f.taxId.matches("[0-9]{12}"))
-          throw new BusinessException("INVALID_INPUT", "El RUT debe contener exactamente 12 dígitos, sin letras ni separadores.");
+          throw new BusinessException(
+              "INVALID_INPUT",
+              "El RUT debe contener exactamente 12 dígitos, sin letras ni separadores.");
       }
       String contact = email(f.contactEmail, "correo comercial");
       db.insert(
@@ -116,10 +159,14 @@ public class Accounts {
   @Transactional
   public void approve(long id) {
     role("ADMIN");
+    var v = db.one("select * from venture where id=? for update", id);
+    if (v.get("denial_reason") != null)
+      throw new BusinessException(
+          "INVALID_INPUT", "El prestador debe volver a solicitar habilitación antes de aprobar.");
     db.update(
         "update venture set"
             + " verification_status='VERIFIED',verified_by=?,verified_at=current_timestamp where"
-            + " id=? and verification_status='PENDING'",
+            + " id=? and verification_status='PENDING' and denial_reason is null",
         id(),
         id);
     db.one("select id from venture where id=?", id);
@@ -128,7 +175,7 @@ public class Accounts {
   @Transactional
   public void updateVenture(
       String email, String phone, Long dep, Long loc, String address, String description) {
-    role("PROVIDER");
+    verifiedProvider();
     location(dep, loc);
     email = email(email, "correo comercial");
     db.update(

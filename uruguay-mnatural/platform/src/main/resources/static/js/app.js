@@ -14,3 +14,14 @@ if (legalType && taxId) {
  taxId.addEventListener('input', () => { taxId.value = taxId.value.replace(/[^0-9]/g, '').slice(0, 12); });
  updateTaxId();
 }
+
+const registrationPassword = document.querySelector('input[name="password"]');
+const registrationConfirmation = document.querySelector('input[name="passwordConfirmation"]');
+if (registrationPassword && registrationConfirmation) {
+ const validateConfirmation = () => registrationConfirmation.setCustomValidity(
+  registrationConfirmation.value && registrationPassword.value !== registrationConfirmation.value
+   ? 'Las contraseñas no coinciden.' : '');
+ registrationPassword.addEventListener('input', validateConfirmation);
+ registrationConfirmation.addEventListener('input', validateConfirmation);
+ validateConfirmation();
+}

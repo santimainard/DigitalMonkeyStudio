@@ -37,6 +37,10 @@
 <label>Anticipación mínima en minutos<input type="number" name="bookingLeadMinutes" min="0" required th:value="${form.bookingLeadMinutes}">
 </label>
 </div>
+<fieldset><legend>Cancelación del turista</legend>
+<label>Anticipación para reembolso total (minutos)<input type="number" name="fullRefundMinutes" min="0" max="525600" required th:value="${form.fullRefundMinutes}"></label>
+<label>Porcentaje a devolver con menor anticipación<input type="number" name="lateRefundPercent" min="0" max="100" required th:value="${form.lateRefundPercent}"></label>
+<p>Cancelar una instancia como prestador devuelve el 100 %. Las cancelaciones solo se permiten antes del inicio. La política queda guardada en cada reserva.</p></fieldset>
 <div class="row location-group">
 <label>Departamento<select name="departmentId" class="department" required>
 <option value="">Seleccioná</option>

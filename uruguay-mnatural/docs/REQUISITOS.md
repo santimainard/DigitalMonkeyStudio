@@ -1,5 +1,21 @@
 # Requisitos de la plataforma Uruguay Mnatural
 
+## Reglas vigentes de acceso y cancelación
+
+Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y devoluciones y permitía operar a prestadores pendientes.
+
+- Al entrar se exige iniciar sesión o crear cuenta. El login lleva siempre a Mi espacio. Solo turistas acceden a Explorar (`/explore`) y al detalle de actividades; prestadores y administradores tienen sus paneles. La API de consulta externa conserva sus rutas públicas.
+- El prestador pendiente o denegado solo ve su solicitud y puede salir. No puede crear/editar actividades, fechas, contacto ni consultar reservas, incluso enviando rutas directamente. El administrador habilita el emprendimiento, no cada actividad.
+- La denegación exige motivo (hasta 2.000 caracteres) y una decisión explícita sobre permitir otra solicitud. Si se permite, el prestador puede volver a pedir habilitación y queda pendiente; no obtiene permisos hasta nueva aprobación. No se permite denegar un emprendimiento ya verificado mediante este flujo.
+- El prestador define por actividad la anticipación para reembolso total (minutos, de 0 a 525.600) y el porcentaje a devolver fuera de ese plazo (entero de 0 a 100). En el límite exacto de anticipación corresponde el 100 %. El porcentaje es **lo que se devuelve**, no la penalización.
+- La reserva conserva una copia de esa política y su inicio original. Ediciones posteriores no alteran compras existentes. Actividades y reservas anteriores a esta actualización reciben la política sin penalización: 100 % antes del inicio; el prestador puede cambiarla para nuevas reservas.
+- El turista cancela su propia reserva; el prestador cancela una instancia completa de su actividad y devuelve el 100 % a las reservas vigentes pagadas. Las solicitudes pendientes de cancelación del turista se elevan al 100 % si el prestador cancela la instancia antes de finalizar su conciliación. Las reservas ya canceladas no se reabren.
+- Ambos pueden **solicitar** cancelación únicamente antes del comienzo. Al inicio exacto ya no se acepta una nueva solicitud. Los reintentos y la conciliación de una solicitud aceptada antes del inicio pueden completarse después.
+- Los importes se calculan sobre el total pagado, en UYU y con dos decimales, redondeo HALF_UP. Una reserva sin pago se cancela sin reembolso; una aprobación concurrente se resuelve bajo el bloqueo del simulador antes de calcular la devolución.
+- Se persiste la intención antes de llamar por HTTP. Si hay indisponibilidad o respuesta perdida, queda pendiente y la conciliación reintenta con la misma referencia. Se conservan cupos hasta verificar el resultado; la instancia cancelada se cierra inmediatamente a nuevas reservas. Nunca se duplican devoluciones.
+- El cierre deja la reserva en PAYMENT_CANCELLED, conserva el importe original y registra actor, porcentaje, solicitud, finalización e importe devuelto. Un pago previamente aprobado queda REFUNDED localmente, incluso si el porcentaje es cero; el simulador conserva el pago APPROVED y registra la devolución acumulada por separado. Ninguna reserva con cancelación solicitada admite reseña.
+
+
 Especificación funcional y técnica para implementar la aplicación del Proyecto TIC 2026. Versión 1.0, 5 de octubre de 2026. Destinatarios: equipo de desarrollo, docente cliente e IA de asistencia a la programación.
 
 La aplicación reunirá actividades turísticas de Uruguay, permitirá reservar y pagar mediante un servicio externo simulado y ofrecerá espacios de gestión para prestadores y administradores. Este documento transforma los CU-01 a CU-13 en comportamientos verificables y completa la API propia solicitada por la consigna. El apartado final contiene un prompt que debe utilizarse junto con la especificación completa.
@@ -17,7 +33,7 @@ La aplicación reunirá actividades turísticas de Uruguay, permitirá reservar 
 
 **Dentro de la primera versión:** todas las funciones obligatorias; aprobación de emprendimientos; integración HTTP con un simulador de pagos separado; gestión de fallos; documentación REST y pruebas de los principales casos de uso.
 
-**Fuera de la primera versión:** devoluciones de pagos, cancelaciones de reservas ya pagadas, pagos presenciales, facturación fiscal, registro de datos individuales de acompañantes, control de asistencia, múltiples monedas, administración de actividades ajenas y registro público de administradores. El clima es una ampliación separada.
+**Fuera de la primera versión:** pagos presenciales, facturación fiscal, registro de datos individuales de acompañantes, control de asistencia, múltiples monedas, administración de actividades ajenas y registro público de administradores. El clima es una ampliación separada.
 
 La especificación define el alcance de software. Los demás entregables académicos siguen siendo necesarios: acta fundacional, visión, MER, secuencias, flujos, arquitectura, mockups, clases UML, actas de reunión, manuales por rol, presentaciones y código fuente.
 
@@ -36,11 +52,11 @@ La especificación define el alcance de software. Los demás entregables académ
 
 **RF-02.** Cada cuenta tiene un rol: TOURIST, PROVIDER o ADMIN. El registro público admite TOURIST y PROVIDER. ADMIN se crea mediante una carga inicial protegida, con contraseña configurable fuera del repositorio. Las credenciales de administrador no aparecen en el código ni en documentación pública.
 
-**RF-03.** La primera versión permite un emprendimiento por prestador. Cambiar esta cardinalidad exige actualizar modelo, permisos y pantallas. El prestador puede cargar actividades e instancias mientras su emprendimiento está pendiente; su oferta solo aparece públicamente después de la aprobación. Esta regla de publicación es una propuesta de diseño coherente con CU-02 y CU-13.
+**RF-03.** La primera versión permite un emprendimiento por prestador. Cambiar esta cardinalidad exige actualizar modelo, permisos y pantallas. El prestador solo puede operar después de la habilitación administrativa; su oferta solo aparece públicamente después de la aprobación. Esta regla de publicación es una propuesta de diseño coherente con CU-02 y CU-13.
 
 ## 3 Cuentas y emprendimientos
 
-**RF-04 / CU-01.** El registro de turista solicita nombre, apellido, correo, documento y contraseña. Son obligatorios. El correo se recorta, normaliza a minúsculas y debe ser único sin distinguir mayúsculas. El documento se conserva como texto; no se impone cédula uruguaya ni unicidad porque pueden registrarse extranjeros. La contraseña se almacena mediante hash seguro, nunca cifrado reversible ni texto plano. Propuesta: mínimo 8 caracteres y máximo 72 bytes UTF-8 si se usa BCrypt.
+**RF-04 / CU-01.** El alta de turistas y prestadores exige repetir la contraseña: ambas entradas deben coincidir exactamente. La confirmación se valida en el servidor y no se almacena ni se vuelve a mostrar en el formulario. El registro de turista solicita nombre, apellido, correo, documento y contraseña. Son obligatorios. El correo se recorta, normaliza a minúsculas y debe ser único sin distinguir mayúsculas. El documento se conserva como texto; no se impone cédula uruguaya ni unicidad porque pueden registrarse extranjeros. La contraseña se almacena mediante hash seguro, nunca cifrado reversible ni texto plano. Propuesta: mínimo 8 caracteres y máximo 72 bytes UTF-8 si se usa BCrypt.
 
 **RF-05 / CU-02.** El registro de prestador solicita nombre del responsable, apellido, correo, contraseña y tipo de personería PHYSICAL o LEGAL. El emprendimiento solicita nombre comercial, teléfono, correo de contacto, departamento, localidad, dirección o referencia y descripción. Para persona jurídica solicita razón social y RUT como texto obligatorio; para física, documento del responsable. La cuenta y el emprendimiento se crean en una transacción: no deben quedar altas parciales. El emprendimiento comienza PENDING.
 
@@ -48,7 +64,7 @@ La especificación define el alcance de software. Los demás entregables académ
 
 **RF-07 / CU-08.** El prestador consulta y modifica teléfono, contacto, ubicación y descripción de su emprendimiento. Nombre comercial, tipo de personería, razón social, RUT y documento son datos de identidad y quedan bloqueados después de la aprobación en esta versión. Cambios de contacto no quitan la aprobación. Solo el propietario modifica los datos.
 
-**RF-08 / CU-13.** El administrador ve la lista de pendientes, abre los datos de un emprendimiento y lo aprueba. Se guardan administrador aprobador y fecha de aprobación. Una segunda aprobación devuelve el estado actual sin duplicar el evento. Aprobar no concede facultades de administrador al prestador. Rechazo, suspensión y carga de documentación son ampliaciones: la letra no especifica documentos a adjuntar y no se exige inventarlos.
+**RF-08 / CU-13.** El administrador ve la lista de pendientes, abre los datos de un emprendimiento y lo aprueba. Se guardan administrador aprobador y fecha de aprobación. Una segunda aprobación devuelve el estado actual sin duplicar el evento. Aprobar no concede facultades de administrador al prestador. La denegación con motivo y permiso de nueva solicitud está implementada. Suspensión y carga de documentación son ampliaciones: la letra no especifica documentos a adjuntar y no se exige inventarlos.
 
 **Aceptación:** un correo repetido impide el alta; un registro inválido no crea cuenta ni emprendimiento; un prestador no puede editar un emprendimiento ajeno; un emprendimiento pendiente no expone oferta pública; solo ADMIN puede aprobarlo.
 
@@ -98,7 +114,7 @@ Los instantes se almacenan en UTC mediante tipos con zona horaria y se presentan
 
 **RF-25 / extensión de CU-04.** Si se habilita clima, se consulta a un proveedor mediante HTTP por ubicación e instancia. Debe mostrarse fecha del pronóstico, unidad y origen. Si no hay coordenadas, el día supera el horizonte del proveedor o la API falla, se muestra Pronóstico no disponible. Se usan timeout y caché configurables. El clima no cambia precios, disponibilidad ni permisos y su caída no bloquea el detalle ni la reserva. La versión base mantiene weather.enabled=false.
 
-**Aceptación:** un visitante puede explorar sin cuenta; combinar fecha y departamento funciona; una oferta pendiente queda excluida de todas las consultas públicas; la ausencia de clima no produce un error general de la ficha.
+**Aceptación:** un visitante es dirigido a iniciar sesión; un turista autenticado puede explorar; combinar fecha y departamento funciona; una oferta pendiente queda excluida de todas las consultas públicas; la ausencia de clima no produce un error general de la ficha.
 
 ## 7 Reservas y control de cupos
 
@@ -126,13 +142,13 @@ Para cupo limitado, available = capacity - suma de participantCount de reservas 
 | COMPLETED | Fecha y hora de fin alcanzadas con pago aprobado. Permite reseña; no acredita asistencia física. |
 | REJECTED | Pago rechazado comprobado; libera retención. Terminal. |
 | EXPIRED | El servicio confirma expiración sin pago; libera retención. Terminal. |
-| PAYMENT_CANCELLED | Cancelación del proceso de pago confirmada por el servicio; libera retención. Terminal. No significa devolución de una reserva pagada. |
+| PAYMENT_CANCELLED | Cancelación del proceso de pago confirmada por el servicio; libera retención. Terminal. Puede representar una cancelación con devolución; el registro cancellation y el estado REFUNDED del pago distinguen el reembolso. |
 
 El pago tiene estados CREATED, PENDING, APPROVED, REJECTED, CANCELLED y EXPIRED. La app puede registrar UNKNOWN localmente cuando no logra conocer el estado remoto. APPROVED, REJECTED, CANCELLED y EXPIRED son terminales y el simulador no permite cambiarlos. Una reserva completada conserva el pago APPROVED.
 
 **RF-31.** Un callback autenticado dispara verificación remota. Cada eventId se procesa una sola vez. Se ignoran repeticiones compatibles; un evento contradictorio se registra y se consulta el estado canónico, sin retroceder una reserva ya pagada. Las transiciones terminales no se sobrescriben por mensajes atrasados.
 
-**RF-32.** Un proceso periódico, propuesto cada 30 segundos, consulta pagos pendientes o inciertos. El simulador comparte expiresAt y garantiza que no aprueba después de esa expiración. La aplicación libera cupos solo tras consultar un estado remoto terminal sin aprobación. Si el servicio permanece caído después de expiresAt, la reserva queda incierta y retiene lugares hasta recuperar comunicación. Esta elección sacrifica disponibilidad temporal para evitar sobreventa o cobros sin lugar.
+**RF-32.** Un proceso periódico, propuesto cada 30 segundos, consulta pagos pendientes o inciertos. El simulador comparte expiresAt y garantiza que no aprueba después de esa expiración. La aplicación libera cupos solo tras consultar un estado remoto terminal sin aprobación o verificar el reembolso de una cancelación solicitada. Si el servicio permanece caído después de expiresAt, la reserva queda incierta y retiene lugares hasta recuperar comunicación. Esta elección sacrifica disponibilidad temporal para evitar sobreventa o cobros sin lugar.
 
 **RF-33.** Si la respuesta se pierde después de aprobar el pago, la consulta posterior recupera APPROVED y confirma la reserva existente. Si el pago se aprueba antes de expiresAt pero el callback llega tarde, se confirma igualmente: los cupos seguían comprometidos. Una operación remota nunca se crea de nuevo con otra referencia por un reintento automático.
 
@@ -332,7 +348,7 @@ Copiar este prompt y adjuntar la especificación completa. No enviar solo el pro
 >
 > Las reservas deben validar disponibilidad y anticipación en el servidor y evitar sobreventa con bloqueo transaccional sobre la instancia. No mantengas ese bloqueo durante llamadas HTTP. No confirmes por una redirección ni liberes lugares ante timeout. Verificá importe, moneda y referencia con el servicio externo; conciliá resultados desconocidos; las transiciones y los callbacks deben ser idempotentes. Preservá los snapshots de las reservas.
 >
-> Implementá reseñas solo para reservas propias con pago aprobado y actividad terminada según su hora de fin guardada. No agregues control de asistencia ni datos individuales de acompañantes. No implementes devoluciones ni cancelación de reservas pagadas. Bloqueá modificaciones de fecha y eliminación cuando existan reservas pagadas conforme a la especificación.
+> Implementá reseñas solo para reservas propias con pago aprobado y actividad terminada según su hora de fin guardada. No agregues control de asistencia ni datos individuales de acompañantes. Implementá cancelaciones y devoluciones según las reglas vigentes de este documento. Bloqueá modificaciones de fecha y eliminación cuando existan reservas pagadas conforme a la especificación.
 >
 > Generá README, Maven Wrapper, configuración por entorno, OpenAPI con ejemplos, migraciones, datos de demostración y manuales por rol. No incluyas secretos en Git. Ejecutá pruebas unitarias de reglas y pruebas de integración de autorización, PostgreSQL, concurrencia e integración HTTP. Documentá lo que aún no esté implementado; no presentes una prueba no ejecutada como aprobada. Explicá el código de modo que el equipo pueda revisarlo y defenderlo.
 

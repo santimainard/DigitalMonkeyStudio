@@ -1,5 +1,21 @@
 # Uruguay Mnatural
 
+## Reglas vigentes de acceso y cancelación
+
+Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y devoluciones y permitía operar a prestadores pendientes.
+
+- Al entrar se exige iniciar sesión o crear cuenta. El login lleva siempre a Mi espacio. Solo turistas acceden a Explorar (`/explore`) y al detalle de actividades; prestadores y administradores tienen sus paneles. La API de consulta externa conserva sus rutas públicas.
+- El prestador pendiente o denegado solo ve su solicitud y puede salir. No puede crear/editar actividades, fechas, contacto ni consultar reservas, incluso enviando rutas directamente. El administrador habilita el emprendimiento, no cada actividad.
+- La denegación exige motivo (hasta 2.000 caracteres) y una decisión explícita sobre permitir otra solicitud. Si se permite, el prestador puede volver a pedir habilitación y queda pendiente; no obtiene permisos hasta nueva aprobación. No se permite denegar un emprendimiento ya verificado mediante este flujo.
+- El prestador define por actividad la anticipación para reembolso total (minutos, de 0 a 525.600) y el porcentaje a devolver fuera de ese plazo (entero de 0 a 100). En el límite exacto de anticipación corresponde el 100 %. El porcentaje es **lo que se devuelve**, no la penalización.
+- La reserva conserva una copia de esa política y su inicio original. Ediciones posteriores no alteran compras existentes. Actividades y reservas anteriores a esta actualización reciben la política sin penalización: 100 % antes del inicio; el prestador puede cambiarla para nuevas reservas.
+- El turista cancela su propia reserva; el prestador cancela una instancia completa de su actividad y devuelve el 100 % a las reservas vigentes pagadas. Las solicitudes pendientes de cancelación del turista se elevan al 100 % si el prestador cancela la instancia antes de finalizar su conciliación. Las reservas ya canceladas no se reabren.
+- Ambos pueden **solicitar** cancelación únicamente antes del comienzo. Al inicio exacto ya no se acepta una nueva solicitud. Los reintentos y la conciliación de una solicitud aceptada antes del inicio pueden completarse después.
+- Los importes se calculan sobre el total pagado, en UYU y con dos decimales, redondeo HALF_UP. Una reserva sin pago se cancela sin reembolso; una aprobación concurrente se resuelve bajo el bloqueo del simulador antes de calcular la devolución.
+- Se persiste la intención antes de llamar por HTTP. Si hay indisponibilidad o respuesta perdida, queda pendiente y la conciliación reintenta con la misma referencia. Se conservan cupos hasta verificar el resultado; la instancia cancelada se cierra inmediatamente a nuevas reservas. Nunca se duplican devoluciones.
+- El cierre deja la reserva en PAYMENT_CANCELLED, conserva el importe original y registra actor, porcentaje, solicitud, finalización e importe devuelto. Un pago previamente aprobado queda REFUNDED localmente, incluso si el porcentaje es cero; el simulador conserva el pago APPROVED y registra la devolución acumulada por separado. Ninguna reserva con cancelación solicitada admite reseña.
+
+
 Aplicación del Proyecto TIC 2026: portal de turismo, gestión de prestadores, aprobación administrativa, reservas con cupos, reseñas y pagos externos simulados.
 
 ## Inicio en Windows con Docker Desktop
@@ -82,7 +98,7 @@ scripts/               Preparación local
 
 ## Alcance y decisiones
 
-Se mantiene el alcance de la especificación: UYU, precio por participante, un emprendimiento por prestador, una reseña por reserva, sin cancelaciones de reservas pagadas ni devoluciones. No se registra asistencia ni datos de acompañantes. Clima queda desactivado y sin integración implementada, como extensión opcional. Los datos geográficos incluyen los 19 departamentos y una selección de localidades, no todas las localidades del país. La aprobación del administrador es la operación de verificación de emprendimiento de la API.
+Se mantiene el alcance de la especificación: UYU, precio por participante, un emprendimiento por prestador, una reseña por reserva, con cancelación y reembolsos según las reglas vigentes. No se registra asistencia ni datos de acompañantes. Clima queda desactivado y sin integración implementada, como extensión opcional. Los datos geográficos incluyen los 19 departamentos y una selección de localidades, no todas las localidades del país. La aprobación del administrador es la operación de verificación de emprendimiento de la API.
 
 La demora remota conserva cupos hasta que el resultado sea comprobable. Si se inicia una compra dentro del plazo, se permite terminarla durante su retención aunque cruce el comienzo. Se utiliza America/Montevideo para fechas visibles y filtros, y UTC para instantes persistidos.
 

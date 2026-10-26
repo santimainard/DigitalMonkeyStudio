@@ -26,6 +26,10 @@ public final class Forms {
     @Size(min = 8, max = 72)
     public String password;
 
+    @NotBlank(message = "Repetí la contraseña.")
+    @Size(max = 72)
+    public String passwordConfirmation;
+
     public String role = "TOURIST";
     public String legalType = "PHYSICAL",
         commercialName,
@@ -59,6 +63,14 @@ public final class Forms {
     @Min(0)
     @Max(525600)
     public int bookingLeadMinutes;
+
+    @Min(0)
+    @Max(525600)
+    public int fullRefundMinutes;
+
+    @Min(0)
+    @Max(100)
+    public int lateRefundPercent = 100;
 
     @NotNull public Long departmentId;
     @NotNull public Long localityId;
