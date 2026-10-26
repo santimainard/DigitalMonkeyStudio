@@ -66,6 +66,9 @@
 <td>
 <span th:text="${@fmt.state(r.status)}">
 </span>
+<small th:if="${r.cancellation_requested_at != null}" th:text="${r.cancellation_completed_at == null ? 'Cancelación pendiente de conciliación' : 'Cancelación completada'}"></small>
+<small th:if="${r.cancellation_requested_at != null}" th:text="|Reembolso acordado: ${r.cancellation_refund_percent} %|"></small>
+<small th:if="${r.cancellation_completed_at != null}" th:text="|Reembolsado: UYU ${r.refunded_amount}|"></small>
 <small th:text="${@fmt.state(r.payment_status)}">
 </small>
 </td>

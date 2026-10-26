@@ -1,10 +1,26 @@
 # Manuales de uso
 
+## Reglas vigentes de acceso y cancelación
+
+Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y devoluciones y permitía operar a prestadores pendientes.
+
+- Al entrar se exige iniciar sesión o crear cuenta. El login lleva siempre a Mi espacio. Solo turistas acceden a Explorar (`/explore`) y al detalle de actividades; prestadores y administradores tienen sus paneles. La API de consulta externa conserva sus rutas públicas.
+- El prestador pendiente o denegado solo ve su solicitud y puede salir. No puede crear/editar actividades, fechas, contacto ni consultar reservas, incluso enviando rutas directamente. El administrador habilita el emprendimiento, no cada actividad.
+- La denegación exige motivo (hasta 2.000 caracteres) y una decisión explícita sobre permitir otra solicitud. Si se permite, el prestador puede volver a pedir habilitación y queda pendiente; no obtiene permisos hasta nueva aprobación. No se permite denegar un emprendimiento ya verificado mediante este flujo.
+- El prestador define por actividad la anticipación para reembolso total (minutos, de 0 a 525.600) y el porcentaje a devolver fuera de ese plazo (entero de 0 a 100). En el límite exacto de anticipación corresponde el 100 %. El porcentaje es **lo que se devuelve**, no la penalización.
+- La reserva conserva una copia de esa política y su inicio original. Ediciones posteriores no alteran compras existentes. Actividades y reservas anteriores a esta actualización reciben la política sin penalización: 100 % antes del inicio; el prestador puede cambiarla para nuevas reservas.
+- El turista cancela su propia reserva; el prestador cancela una instancia completa de su actividad y devuelve el 100 % a las reservas vigentes pagadas. Las solicitudes pendientes de cancelación del turista se elevan al 100 % si el prestador cancela la instancia antes de finalizar su conciliación. Las reservas ya canceladas no se reabren.
+- Ambos pueden **solicitar** cancelación únicamente antes del comienzo. Al inicio exacto ya no se acepta una nueva solicitud. Los reintentos y la conciliación de una solicitud aceptada antes del inicio pueden completarse después.
+- Los importes se calculan sobre el total pagado, en UYU y con dos decimales, redondeo HALF_UP. Una reserva sin pago se cancela sin reembolso; una aprobación concurrente se resuelve bajo el bloqueo del simulador antes de calcular la devolución.
+- Se persiste la intención antes de llamar por HTTP. Si hay indisponibilidad o respuesta perdida, queda pendiente y la conciliación reintenta con la misma referencia. Se conservan cupos hasta verificar el resultado; la instancia cancelada se cierra inmediatamente a nuevas reservas. Nunca se duplican devoluciones.
+- El cierre deja la reserva en PAYMENT_CANCELLED, conserva el importe original y registra actor, porcentaje, solicitud, finalización e importe devuelto. Un pago previamente aprobado queda REFUNDED localmente, incluso si el porcentaje es cero; el simulador conserva el pago APPROVED y registra la devolución acumulada por separado. Ninguna reserva con cancelación solicitada admite reseña.
+
+
 ## Visitante y turista
 
 1. Entrá al catálogo; combiná departamento, localidad, categorías, día, rango de precio y texto. Las tarjetas indican precio por persona.
 2. Abrí una actividad para consultar descripción, requisitos, equipamiento, opiniones y próximas instancias.
-3. Registrate como turista con nombre, apellido, documento, correo y contraseña. Iniciá sesión.
+3. Registrate como turista con nombre, apellido, documento, correo y contraseña. Repetí la contraseña en el campo de confirmación; ambas deben coincidir. Iniciá sesión.
 4. Elegí fecha y cantidad. Revisá inicio, fin y total. Al confirmar se comprueban cupos y plazo en el servidor.
 5. En el detalle de la reserva, abrí el simulador y elegí aprobar, rechazar o cancelar. No ingreses una tarjeta real.
 6. Volvé a tu reserva. Si aún está pendiente, usá Actualizar estado; también se consulta automáticamente cada 30 segundos desde el servidor.
@@ -13,8 +29,8 @@
 
 ## Prestador
 
-1. Elegí Soy prestador en el registro. Completá responsable, tipo de personería y emprendimiento; una persona jurídica debe incluir razón social y RUT.
-2. En Mi espacio podés editar contacto y ubicación, crear actividades y cargar fechas mientras esperás aprobación.
+1. Elegí Soy prestador en el registro. Completá responsable, contraseña y su confirmación, tipo de personería y emprendimiento; una persona jurídica debe incluir razón social y RUT.
+2. En Mi espacio podés editar contacto y ubicación, crear actividades y cargar fechas después de la aprobación.
 3. Cada actividad requiere precio, duración, anticipación, ubicación, condiciones y categorías. Marcá qué equipamiento aportás y qué debe llevar el turista.
 4. Después de la aprobación de UM, marcá Publicar y guardá. Guardar sin marcar conserva un borrador.
 5. En Fechas y cupos agregá inicio local y capacidad. Cupo vacío significa ilimitado. La fecha de fin se calcula con la duración vigente.
@@ -35,3 +51,13 @@ En el checkout, seleccioná Callback duplicado o Sin callback inmediato. El segu
 Para indisponibilidad o respuesta de creación perdida, enviá `POST http://localhost:8081/simulation/mode` con `X-API-Key` tomada de .env, Content-Type application/json y cuerpo `{"mode":"UNAVAILABLE"}` o `{"mode":"LOST_RESPONSE"}`. Luego creá una reserva. Restablecé `{"mode":"NORMAL"}` y actualizá el estado. `TIMEOUT` también demora la respuesta de creación 7 segundos, mayor que el timeout de 5 segundos de la app. El simulador conserva la operación creada; la conciliación busca por referencia antes de crear otra.
 
 La hora de fin puede demostrarse creando una actividad de duración 1 minuto con inicio cercano y anticipación cero; reservá antes del inicio, pagá y esperá el fin. No hace falta modificar estados manualmente en PostgreSQL.
+
+## Cancelar y reembolsar
+
+**Prestador:** después de la aprobación, abrí Nueva actividad o Editar. Cargá los minutos para devolución total y el porcentaje para cancelaciones con menor anticipación. Para cancelar una fecha, entrá en Fechas y cupos y usá **Cancelar instancia y reembolsar**. No uses Eliminar: ese botón sigue impidiendo borrar fechas con reservas comprometidas. Una cancelación deja de aceptar nuevas reservas y devuelve el total a las vigentes pagadas; las devoluciones pendientes se concilian automáticamente.
+
+**Turista:** en Mi espacio, abrí el detalle de tu reserva. Antes de confirmar, el botón informa el porcentaje que corresponde ahora. Después muestra si la cancelación está pendiente o completada, el importe devuelto y el retenido cuando hubo un pago. Actualizar cancelación reintenta una comprobación pendiente. No se puede reseñar una reserva cancelada.
+
+**Administrador:** en Mi espacio, abrí un emprendimiento pendiente. Podés aprobarlo o escribir el motivo y usar **Denegar emprendimiento**. Marcá Permitir una nueva solicitud únicamente si querés habilitar ese reintento. El prestador verá el motivo y, si corresponde, el botón para volver a solicitar aprobación.
+
+La política de reembolso se expresa en minutos; por ejemplo, 1440 significa un día. Con anticipación 1440 y porcentaje 25, una cancelación exactamente un día antes devuelve el 100 %; más tarde, pero antes de comenzar, devuelve el 25 %. Si el total es UYU 1200, son UYU 300 de devolución y UYU 900 retenidos.

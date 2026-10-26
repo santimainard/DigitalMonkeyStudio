@@ -122,6 +122,59 @@ try:
     detail=check(session.get(base+'/api/v1/activities/1')).json()
     assert detail['instances'][0]['availableCapacity']==10
     print('PASS: remote outage, retained capacity, recovery by reference, delayed callback, rejection and released capacity.',flush=True)
+    provider = Session()
+    page = check(provider.get(base+'/login'))
+    check(provider.post(base+'/login',data={'username':'prestador@example.test','password':env['DEMO_PASSWORD'],'_csrf':token(page.text)}))
+    check(provider.get(base+'/explore'),403)
+    check(provider.get(base+'/activities/1'),403)
+    page=check(provider.get(base+'/provider/activities/1/edit'))
+    check(provider.post(base+'/provider/activities',data={
+        '_csrf':token(page.text),'activityId':'1','name':'Senderismo entre sierras','description':'Recorrido de prueba',
+        'unitPrice':'1200.00','durationMinutes':'120','bookingLeadMinutes':'30','departmentId':'8','localityId':'8',
+        'locationDescription':'Minas','conditions':'Prueba','categoryIds':'1','published':'true',
+        'fullRefundMinutes':'525600','lateRefundPercent':'35'}))
+    # Existing reservation retains its original full-refund policy.
+    old=check(session.post(base+f"/api/v1/reservations/{r['id']}/cancellation",headers={'X-CSRF-TOKEN':csrf})).json()
+    assert old['status']=='PAYMENT_CANCELLED' and old['cancellation']['refundedAmount']==2400,old
+    check(session.post(base+f"/api/v1/reservations/{r['id']}/cancellation",headers={'X-CSRF-TOKEN':csrf}))
+    def book():
+        return check(session.post(base+'/api/v1/reservations',headers={'X-CSRF-TOKEN':csrf,'Idempotency-Key':str(uuid.uuid4())},
+            json={'instanceId':instance,'participantCount':1}),201).json()
+    partial=book()
+    payment=partial['checkoutUrl'].rsplit('/',1)[-1]
+    check(api.post(sim+f'/payments/{payment}/decision',json={'action':'APPROVE','callback':'DELAY'}))
+    check(api.post(sim+'/simulation/mode',json={'mode':'UNAVAILABLE'}))
+    pending_cancel=check(session.post(base+f"/api/v1/reservations/{partial['id']}/cancellation",headers={'X-CSRF-TOKEN':csrf})).json()
+    assert pending_cancel['cancellation']['completedAt'] is None,pending_cancel
+    check(api.post(sim+'/simulation/mode',json={'mode':'NORMAL'}))
+    check(session.post(base+f"/tourist/reservations/{partial['id']}/refresh",data={'_csrf':csrf}))
+    cancelled=get_reservation(partial['id'])
+    assert cancelled['status']=='PAYMENT_CANCELLED' and cancelled['cancellation']['refundedAmount']==420,cancelled
+    # Simulate a lost refund response: operation already completed remotely, then retried.
+    paid=book()
+    payment=paid['checkoutUrl'].rsplit('/',1)[-1]
+    check(api.post(sim+f'/payments/{payment}/decision',json={'action':'APPROVE','callback':'DELAY'}))
+    check(api.post(sim+'/simulation/mode',json={'mode':'LOST_RESPONSE'}))
+    lost=check(session.post(base+f"/api/v1/reservations/{paid['id']}/cancellation",headers={'X-CSRF-TOKEN':csrf})).json()
+    assert lost['cancellation']['completedAt'] is None,lost
+    check(api.post(sim+'/simulation/mode',json={'mode':'NORMAL'}))
+    check(session.post(base+f"/tourist/reservations/{paid['id']}/refresh",data={'_csrf':csrf}))
+    assert get_reservation(paid['id'])['cancellation']['refundedAmount']==420
+    paid=book()
+    payment=paid['checkoutUrl'].rsplit('/',1)[-1]
+    check(api.post(sim+f'/payments/{payment}/decision',json={'action':'APPROVE','callback':'DELAY'}))
+    unpaid=book()
+    page=check(provider.get(base+'/provider'))
+    check(provider.post(base+f'/provider/activities/1/instances/{instance}/cancel',data={'_csrf':token(page.text)}))
+    paid=get_reservation(paid['id']);unpaid=get_reservation(unpaid['id'])
+    assert paid['status']=='PAYMENT_CANCELLED' and paid['cancellation']['refundedAmount']==1200,paid
+    assert unpaid['status']=='PAYMENT_CANCELLED' and unpaid['cancellation']['refundedAmount']==0,unpaid
+    check(provider.post(base+f'/provider/activities/1/instances/{instance}/cancel',data={'_csrf':token(page.text)}))
+    detail=check(session.get(base+'/api/v1/activities/1')).json()
+    assert all(i['id']!=instance for i in detail['instances']),detail
+    page=check(provider.get(base+f'/provider/reservations?instanceId={instance}'))
+    assert 'Reembolsado: UYU 1200' in page.text and 'Cancelación completada' in page.text,page.text[:1000]
+    print('PASS: role restrictions, policy snapshots, partial/full refunds, unpaid cancellation, outage recovery, lost refund response, provider instance cancellation and repeated requests.',flush=True)
     print('HTTP SMOKE SUCCESS (H2 test database; real independent HTTP services).',flush=True)
 finally:
     for p in processes: p.terminate()

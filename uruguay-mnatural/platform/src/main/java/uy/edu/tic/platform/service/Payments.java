@@ -18,11 +18,17 @@ public class Payments {
   private final Database db;
   private final PaymentClient client;
   private final ReservationTransactions tx;
+  private final CancellationTransactions cancellations;
 
-  public Payments(Database db, PaymentClient client, ReservationTransactions tx) {
+  public Payments(
+      Database db,
+      PaymentClient client,
+      ReservationTransactions tx,
+      CancellationTransactions cancellations) {
     this.db = db;
     this.client = client;
     this.tx = tx;
+    this.cancellations = cancellations;
   }
 
   public void synchronize(UUID id) {
@@ -53,6 +59,30 @@ public class Payments {
     }
   }
 
+  public void settleCancellation(UUID id) {
+    var c =
+        db.one(
+            "select c.*,r.total_amount,r.currency,r.expires_at from cancellation c join reservation"
+                + " r on r.id=c.reservation_id where c.reservation_id=?",
+            id);
+    if (c.get("completed_at") != null) return;
+    try {
+      var remote = client.byReference(id.toString());
+      if (remote == null)
+        remote =
+            client.create(
+                id.toString(),
+                (BigDecimal) c.get("total_amount"),
+                c.get("currency").toString(),
+                instant(c.get("expires_at")));
+      var result = client.cancel(remote.paymentId(), (Integer) c.get("refund_percent"));
+      cancellations.finish(id, result);
+    } catch (RuntimeException e) {
+      log.warn(
+          "Cancelación pendiente de conciliación para {}: {}", id, e.getClass().getSimpleName());
+    }
+  }
+
   public void event(String eventId, String paymentId, String ref) {
     var remote = client.get(paymentId);
     if (remote == null || !remote.merchantReference().equals(ref))
@@ -71,6 +101,10 @@ public class Payments {
       } catch (RuntimeException e) {
         log.warn("No se pudo conciliar {}", r.get("id"));
       }
+    for (var row :
+        db.list(
+            "select reservation_id from cancellation where completed_at is null order by"
+                + " requested_at limit 100")) settleCancellation((UUID) row.get("reservation_id"));
     tx.complete();
   }
 }

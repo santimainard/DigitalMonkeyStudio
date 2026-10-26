@@ -32,6 +32,7 @@ class PlatformIntegrationTest {
   @Autowired Accounts accounts;
   @Autowired Tourism tourism;
   @Autowired ReservationTransactions tx;
+  @Autowired CancellationTransactions cancellations;
   long activity, instance, tourist, provider;
   String touristEmail, providerEmail;
 
@@ -50,6 +51,7 @@ class PlatformIntegrationTest {
     t.lastName = "Turista";
     t.email = touristEmail;
     t.password = "TestOnly123!";
+    t.passwordConfirmation = t.password;
     t.document = "ABC";
     tourist = accounts.register(t);
     Registration p = new Registration();
@@ -57,6 +59,7 @@ class PlatformIntegrationTest {
     p.lastName = "Prestador";
     p.email = providerEmail;
     p.password = "TestOnly123!";
+    p.passwordConfirmation = p.password;
     p.document = "XYZ";
     p.role = "PROVIDER";
     p.commercialName = "Test " + tag;
@@ -131,7 +134,7 @@ class PlatformIntegrationTest {
         id);
     tx.review(id, 5, "<script>alert('x')</script>");
     assertThrows(BusinessException.class, () -> tx.review(id, 5, "Duplicado"));
-    mvc.perform(get("/activities/" + activity))
+    mvc.perform(get("/activities/" + activity).with(user(touristEmail).roles("TOURIST")))
         .andExpect(status().isOk())
         .andExpect(content().string(org.hamcrest.Matchers.containsString("&lt;script&gt;")));
     mvc.perform(
@@ -229,7 +232,7 @@ class PlatformIntegrationTest {
   void pagesAndApisRender() throws Exception {
     for (String path :
         List.of(
-            "/",
+            "/explore",
             "/login",
             "/register",
             "/register?role=PROVIDER",
@@ -237,7 +240,7 @@ class PlatformIntegrationTest {
             "/api/v1/ventures",
             "/api/v1/activities/search?q=Test",
             "/api/v1/activities/" + activity)) {
-      mvc.perform(get(path)).andExpect(status().isOk());
+      mvc.perform(get(path).with(user(touristEmail).roles("TOURIST"))).andExpect(status().isOk());
     }
     for (String path :
         List.of(
@@ -275,6 +278,7 @@ class PlatformIntegrationTest {
     r.lastName = "B";
     r.email = touristEmail;
     r.password = "TestOnly123!";
+    r.passwordConfirmation = r.password;
     r.document = "12";
     assertThrows(BusinessException.class, () -> accounts.register(r));
     r.email = "invalid-" + UUID.randomUUID() + "@example.test";
@@ -303,5 +307,266 @@ class PlatformIntegrationTest {
                     p.checkoutUrl()),
                 null));
     assertEquals("PENDING_PAYMENT", tx.detail(id).get("status"));
+  }
+
+  @Test
+  void pendingDeniedProviderAndRoleNavigation() throws Exception {
+    login(providerEmail);
+    long venture = ((Number) accounts.venture().get("id")).longValue();
+    db.update("update venture set verification_status='PENDING' where id=?", venture);
+    assertThrows(
+        org.springframework.security.access.AccessDeniedException.class,
+        () -> tourism.owned(activity));
+    mvc.perform(get("/provider").with(user(providerEmail).roles("PROVIDER")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("pendiente de habilitación")))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(">Explorar<"))));
+    for (String path :
+        List.of(
+            "/provider/activities/new",
+            "/provider/activities/" + activity + "/edit",
+            "/provider/reservations"))
+      mvc.perform(get(path).with(user(providerEmail).roles("PROVIDER")))
+          .andExpect(status().isForbidden());
+    mvc.perform(post("/provider/venture").with(user(providerEmail).roles("PROVIDER")).with(csrf()))
+        .andExpect(status().isForbidden());
+    for (String role : List.of("PROVIDER", "ADMIN"))
+      for (String path : List.of("/explore", "/activities/" + activity))
+        mvc.perform(
+                get(path)
+                    .with(
+                        user(role.equals("ADMIN") ? "admin@example.test" : providerEmail)
+                            .roles(role)))
+            .andExpect(status().isForbidden());
+    SecurityContextHolder.clearContext();
+    mvc.perform(get("/").with(anonymous()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrlPattern("**/login"));
+    login("admin@example.test");
+    assertThrows(BusinessException.class, () -> accounts.deny(venture, " ", true));
+    accounts.deny(venture, "Faltan datos", false);
+    login(providerEmail);
+    assertThrows(
+        org.springframework.security.access.AccessDeniedException.class, () -> accounts.reapply());
+    mvc.perform(get("/provider").with(user(providerEmail).roles("PROVIDER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Faltan datos")));
+    db.update("update venture set allow_reapply=true where id=?", venture);
+    login(providerEmail);
+    accounts.reapply();
+    assertNull(accounts.venture().get("denial_reason"));
+    assertFalse(accounts.providerEnabled());
+    login("admin@example.test");
+    accounts.approve(venture);
+    login(providerEmail);
+    assertNotNull(tourism.owned(activity));
+  }
+
+  @Test
+  void cancellationUsesSnapshotAndReconcilesIdempotently() throws Exception {
+    db.update(
+        "update activity set full_refund_minutes=2880,late_refund_percent=35 where id=?", activity);
+    UUID id = tx.reserve(instance, 2, "cancel");
+    tx.apply(id, remote(id, "APPROVED"), null);
+    db.update("update activity set late_refund_percent=99 where id=?", activity);
+    cancellations.tourist(id);
+    cancellations.tourist(id);
+    assertEquals(
+        35, db.one("select * from cancellation where reservation_id=?", id).get("refund_percent"));
+    assertEquals(2, tourism.committed(instance)); // unknown outcome retains capacity
+    assertFalse((Boolean) tx.detail(id).get("can_review"));
+    mvc.perform(get("/tourist/reservations/" + id).with(user(touristEmail).roles("TOURIST")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("Pendiente de conciliación")));
+    var result =
+        new uy.edu.tic.platform.integration.PaymentClient.Settlement(
+            "pay-" + id,
+            id.toString(),
+            new BigDecimal("2400.00"),
+            "UYU",
+            "APPROVED",
+            35,
+            new BigDecimal("840.00"));
+    cancellations.finish(id, result);
+    cancellations.finish(id, result);
+    login(touristEmail);
+    cancellations.tourist(id);
+    tx.apply(id, remote(id, "APPROVED"), null);
+    assertEquals("PAYMENT_CANCELLED", tx.detail(id).get("status"));
+    assertEquals(0, tourism.committed(instance));
+    assertEquals(
+        new BigDecimal("840.00"),
+        db.one("select * from cancellation where reservation_id=?", id).get("refunded_amount"));
+    assertThrows(BusinessException.class, () -> tx.review(id, 5, "Cancelada"));
+  }
+
+  @Test
+  void providerCancellationRefundsAllAndClosesInstance() {
+    UUID id = tx.reserve(instance, 1, "provider-cancel");
+    tx.apply(id, remote(id, "APPROVED"), null);
+    login(providerEmail);
+    assertEquals(List.of(id), cancellations.provider(activity, instance));
+    assertEquals(List.of(id), cancellations.provider(activity, instance));
+    assertEquals(
+        100, db.one("select * from cancellation where reservation_id=?", id).get("refund_percent"));
+    assertThrows(
+        BusinessException.class,
+        () ->
+            tourism.saveInstance(
+                activity, instance, LocalDateTime.now(Tourism.ZONE).plusDays(2), 2, false));
+    login(touristEmail);
+    assertThrows(BusinessException.class, () -> tx.reserve(instance, 1, "closed"));
+    cancellations.finish(
+        id,
+        new uy.edu.tic.platform.integration.PaymentClient.Settlement(
+            "pay-" + id,
+            id.toString(),
+            new BigDecimal("1200.00"),
+            "UYU",
+            "APPROVED",
+            100,
+            new BigDecimal("1200.00")));
+    assertEquals(0, tourism.committed(instance));
+  }
+
+  @Test
+  void cancellationRejectsForeignOwnersAndStartedInstances() {
+    UUID id = tx.reserve(instance, 1, "ownership");
+    login(providerEmail);
+    assertThrows(
+        org.springframework.security.access.AccessDeniedException.class,
+        () -> cancellations.tourist(id));
+    login("admin@example.test");
+    assertThrows(
+        org.springframework.security.access.AccessDeniedException.class,
+        () -> cancellations.provider(activity, instance));
+    login(touristEmail);
+    db.update(
+        "update reservation set starts_at_snapshot=? where id=?",
+        OffsetDateTime.now().minusSeconds(1),
+        id);
+    assertThrows(BusinessException.class, () -> cancellations.tourist(id));
+    login(providerEmail);
+    db.update(
+        "update activity_instance set starts_at=?,ends_at=? where id=?",
+        OffsetDateTime.now().minusSeconds(1),
+        OffsetDateTime.now().plusMinutes(60),
+        instance);
+    assertThrows(BusinessException.class, () -> cancellations.provider(activity, instance));
+  }
+
+  @Test
+  void refundBoundaryIsInclusive() {
+    Instant start = Instant.parse("2030-01-01T15:00:00Z");
+    var r =
+        Map.<String, Object>of(
+            "starts_at_snapshot", start, "full_refund_minutes", 60, "late_refund_percent", 0);
+    assertEquals(100, CancellationTransactions.refundPercent(r, start.minusSeconds(3600)));
+    assertEquals(0, CancellationTransactions.refundPercent(r, start.minusSeconds(3599)));
+  }
+
+  @Test
+  void providerUpgradesPendingRefundAndRejectsStaleSettlement() {
+    db.update(
+        "update activity set full_refund_minutes=525600,late_refund_percent=25 where id=?",
+        activity);
+    UUID id = tx.reserve(instance, 1, "upgrade");
+    tx.apply(id, remote(id, "APPROVED"), null);
+    cancellations.tourist(id);
+    login(providerEmail);
+    cancellations.provider(activity, instance);
+    var stale =
+        new uy.edu.tic.platform.integration.PaymentClient.Settlement(
+            "pay-" + id,
+            id.toString(),
+            new BigDecimal("1200.00"),
+            "UYU",
+            "APPROVED",
+            25,
+            new BigDecimal("300.00"));
+    assertThrows(BusinessException.class, () -> cancellations.finish(id, stale));
+    assertEquals(1, tourism.committed(instance));
+    cancellations.finish(
+        id,
+        new uy.edu.tic.platform.integration.PaymentClient.Settlement(
+            "pay-" + id,
+            id.toString(),
+            new BigDecimal("1200.00"),
+            "UYU",
+            "APPROVED",
+            100,
+            new BigDecimal("1200.00")));
+    assertEquals(0, tourism.committed(instance));
+  }
+
+  @Test
+  void registrationRequiresMatchingPasswordConfirmationForBothRoles() throws Exception {
+    for (String role : List.of("TOURIST", "PROVIDER")) {
+      String email = "confirm-" + UUID.randomUUID() + "@example.test";
+      var registration = new Registration();
+      registration.role = role;
+      registration.email = email;
+      registration.password = "ConfirmationTest123!";
+      assertThrows(BusinessException.class, () -> accounts.register(registration));
+      registration.passwordConfirmation = "DifferentTest123!";
+      assertThrows(BusinessException.class, () -> accounts.register(registration));
+      assertEquals(0, db.count("select count(*) from app_user where email=?", email));
+      for (String confirmation : List.of("", "DifferentTest123!", "ConfirmationTest123!")) {
+        var request =
+            post("/register")
+                .with(anonymous())
+                .with(csrf())
+                .param("role", role)
+                .param("firstName", "Confirmación")
+                .param("lastName", "Prueba")
+                .param("email", email)
+                .param("document", "DEMO")
+                .param("password", "ConfirmationTest123!")
+                .param("passwordConfirmation", confirmation)
+                .param("legalType", "PHYSICAL")
+                .param("commercialName", "Emprendimiento de prueba")
+                .param("contactEmail", email)
+                .param("phone", "1234")
+                .param("departmentId", "10")
+                .param("localityId", "10")
+                .param("locationDescription", "Montevideo")
+                .param("description", "Prueba de alta");
+        if (confirmation.equals("ConfirmationTest123!")) {
+          mvc.perform(request)
+              .andExpect(status().is3xxRedirection())
+              .andExpect(redirectedUrl("/login"));
+          var created = db.one("select * from app_user where email=?", email);
+          assertEquals(role, created.get("role"));
+          assertNotEquals("ConfirmationTest123!", created.get("password_hash"));
+          assertEquals(
+              role.equals("PROVIDER") ? 1 : 0,
+              db.count("select count(*) from venture where owner_id=?", created.get("id")));
+        } else {
+          mvc.perform(request)
+              .andExpect(status().isOk())
+              .andExpect(view().name("register"))
+              .andExpect(
+                  content()
+                      .string(
+                          org.hamcrest.Matchers.containsString("name=\"passwordConfirmation\"")))
+              .andExpect(
+                  content()
+                      .string(
+                          org.hamcrest.Matchers.not(
+                              org.hamcrest.Matchers.containsString("ConfirmationTest123!"))))
+              .andExpect(
+                  content()
+                      .string(
+                          org.hamcrest.Matchers.not(
+                              org.hamcrest.Matchers.containsString("DifferentTest123!"))));
+          assertEquals(0, db.count("select count(*) from app_user where email=?", email));
+        }
+      }
+    }
   }
 }

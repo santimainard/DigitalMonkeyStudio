@@ -45,6 +45,7 @@
 <button>Crear reserva y continuar al pago</button>
 </form>
 </section>
+<p th:text="|Cancelación antes del inicio: reembolso total con al menos ${activity.full_refund_minutes} minutos de anticipación; con menos anticipación, ${activity.late_refund_percent} %. Si cancela el prestador, se devuelve el 100 %.|"></p>
 </main>
 <footer th:replace="~{fragments :: footer}">
 </footer>

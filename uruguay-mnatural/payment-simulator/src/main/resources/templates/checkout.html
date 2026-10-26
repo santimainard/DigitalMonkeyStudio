@@ -15,6 +15,7 @@
 </p>
 <p th:text="|Estado: ${payment.status}|">
 </p>
+<p class="notice" th:if="${payment.cancellationPercent != null}" th:text="|Cancelación procesada. Reembolsado: ${payment.currency} ${payment.refundedAmount}.|"></p>
 <small th:text="|Referencia: ${payment.merchantReference}|">
 </small>
 <small th:text="|Vencimiento UTC: ${payment.expiresAt}|">

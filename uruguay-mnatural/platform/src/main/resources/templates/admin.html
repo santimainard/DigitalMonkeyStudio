@@ -21,7 +21,7 @@
 <details class="panel" th:each="v:${ventures}">
 <summary>
 <strong th:text="${v.commercial_name}">
-</strong> · <span th:text="${@fmt.state(v.verification_status)}">
+</strong> · <span th:text="${v.denial_reason != null ? 'Denegado' : @fmt.state(v.verification_status)}">
 </span>
 </summary>
 <dl>
@@ -44,8 +44,14 @@
 <dd th:text="${v.description}">
 </dd>
 </dl>
-<form th:if="${v.verification_status == 'PENDING'}" th:action="@{/admin/ventures/{id}/approve(id=${v.id})}" method="post">
+<form th:if="${v.verification_status == 'PENDING' and v.denial_reason == null}" th:action="@{/admin/ventures/{id}/approve(id=${v.id})}" method="post">
 <button>Aprobar emprendimiento</button>
+</form>
+<p th:if="${v.denial_reason != null}" th:text="${v.denial_reason}"></p>
+<form th:if="${v.verification_status == 'PENDING' and v.denial_reason == null}" th:action="@{/admin/ventures/{id}/deny(id=${v.id})}" method="post">
+<label>Motivo de denegación<textarea name="reason" required maxlength="2000"></textarea></label>
+<label class="check"><input type="checkbox" name="allowRetry" value="true">Permitir una nueva solicitud</label>
+<button class="danger">Denegar emprendimiento</button>
 </form>
 </details>
 <div class="two-columns">

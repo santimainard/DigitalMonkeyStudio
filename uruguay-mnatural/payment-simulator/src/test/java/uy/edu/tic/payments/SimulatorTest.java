@@ -88,4 +88,68 @@ class SimulatorTest {
         org.springframework.web.server.ResponseStatusException.class,
         () -> store.create(r, r.merchantReference()));
   }
+
+  @Test
+  void partialRefundAndPendingCancellationAreIdempotent() throws Exception {
+    var r = request(Instant.now().plusSeconds(600));
+    var p = store.create(r, r.merchantReference());
+    UUID id = UUID.fromString(p.paymentId());
+    store.decide(id, "APPROVE");
+    var result = store.cancel(id, 35);
+    assertEquals(new BigDecimal("420.00"), result.refundedAmount());
+    assertEquals(result, store.cancel(id, 35));
+    assertThrows(
+        org.springframework.web.server.ResponseStatusException.class, () -> store.cancel(id, 34));
+    mvc.perform(
+            post("/payments/" + id + "/cancellation")
+                .contentType("application/json")
+                .content("{\"refundPercent\":35}"))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            post("/payments/" + id + "/cancellation")
+                .header("X-API-Key", "test-api-key")
+                .contentType("application/json")
+                .content("{\"refundPercent\":35}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.refundedAmount").value(420.00));
+    assertEquals(new BigDecimal("1200.00"), store.cancel(id, 100).refundedAmount());
+    assertEquals(new BigDecimal("1200.00"), store.cancel(id, 35).refundedAmount());
+    r = request(Instant.now().plusSeconds(600));
+    p = store.create(r, r.merchantReference());
+    UUID pendingId = UUID.fromString(p.paymentId());
+    assertEquals(new BigDecimal("0.00"), store.cancel(pendingId, 100).refundedAmount());
+    assertEquals("CANCELLED", store.decide(pendingId, "APPROVE").status());
+  }
+
+  @Test
+  void paymentApprovalRacingCancellationCannotLeaveAnUnrefundedCharge() throws Exception {
+    var r = request(Instant.now().plusSeconds(600));
+    UUID id = UUID.fromString(store.create(r, r.merchantReference()).paymentId());
+    var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+    var go = new java.util.concurrent.CountDownLatch(1);
+    try {
+      var approval =
+          pool.submit(
+              () -> {
+                go.await();
+                return store.decide(id, "APPROVE");
+              });
+      var cancellation =
+          pool.submit(
+              () -> {
+                go.await();
+                return store.cancel(id, 100);
+              });
+      go.countDown();
+      approval.get(10, java.util.concurrent.TimeUnit.SECONDS);
+      var result = cancellation.get(10, java.util.concurrent.TimeUnit.SECONDS);
+      assertTrue(Set.of("APPROVED", "CANCELLED").contains(result.status()));
+      assertEquals(
+          "APPROVED".equals(result.status()) ? new BigDecimal("1200.00") : new BigDecimal("0.00"),
+          result.refundedAmount());
+      assertEquals(result, store.cancel(id, 100));
+    } finally {
+      pool.shutdownNow();
+    }
+  }
 }

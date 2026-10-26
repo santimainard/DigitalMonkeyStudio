@@ -39,6 +39,9 @@
 <label>Contraseña<input name="password" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
 <small>Mínimo 8 caracteres.</small>
 </label>
+<label>Repetir contraseña<input name="passwordConfirmation" type="password" minlength="8" maxlength="72" required autocomplete="new-password">
+<small>Escribí nuevamente la misma contraseña.</small>
+</label>
 <th:block th:if="${form.role == 'PROVIDER'}">
 <h2>Datos del emprendimiento</h2>
 <label>Personería<select name="legalType">
@@ -78,7 +81,7 @@
 <label>Descripción<textarea name="description" maxlength="5000" required th:text="${form.description}">
 </textarea>
 </label>
-<p class="muted">Tu emprendimiento quedará pendiente de aprobación. Podés cargar actividades mientras tanto.</p>
+<p class="muted">Tu emprendimiento quedará pendiente de aprobación. Las funciones del prestador se habilitarán cuando un administrador lo apruebe.</p>
 </th:block>
 <button>Crear cuenta</button>
 </form>

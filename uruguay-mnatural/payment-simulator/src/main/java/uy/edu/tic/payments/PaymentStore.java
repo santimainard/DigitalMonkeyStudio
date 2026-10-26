@@ -42,7 +42,9 @@ public class PaymentStore {
       String status,
       Instant expiresAt,
       Instant approvedAt,
-      String checkoutUrl) {}
+      String checkoutUrl,
+      Integer cancellationPercent,
+      BigDecimal refundedAmount) {}
 
   private Instant instant(Object t) {
     if (t == null) return null;
@@ -60,7 +62,9 @@ public class PaymentStore {
         (String) p.get("status"),
         instant(p.get("expires_at")),
         instant(p.get("approved_at")),
-        publicUrl + "/checkout/" + p.get("id"));
+        publicUrl + "/checkout/" + p.get("id"),
+        (Integer) p.get("cancellation_percent"),
+        (BigDecimal) p.get("refunded_amount"));
   }
 
   private Map<String, Object> one(String where, Object id) {
@@ -161,6 +165,52 @@ public class PaymentStore {
         "APPROVED".equals(status) ? now.atOffset(ZoneOffset.UTC) : null,
         id);
     return get(id);
+  }
+
+  public record Settlement(
+      String paymentId,
+      String merchantReference,
+      BigDecimal amount,
+      String currency,
+      String status,
+      int refundPercent,
+      BigDecimal refundedAmount) {}
+
+  @Transactional
+  public Settlement cancel(UUID id, int percent) {
+    if (percent < 0 || percent > 100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+    var p = one("id=? for update", id);
+    if (p.get("cancellation_percent") != null
+        && ((Number) p.get("cancellation_percent")).intValue() != percent
+        && percent != 100
+        && ((Number) p.get("cancellation_percent")).intValue() != 100)
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Política distinta para la misma cancelación");
+    if (p.get("cancellation_percent") == null
+        || percent == 100 && ((Number) p.get("cancellation_percent")).intValue() < 100) {
+      BigDecimal refund =
+          "APPROVED".equals(p.get("status"))
+              ? ((BigDecimal) p.get("amount"))
+                  .multiply(BigDecimal.valueOf(percent))
+                  .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP)
+              : new BigDecimal("0.00");
+      db.update(
+          "update simulated_payment set cancellation_percent=?,refunded_amount=?,status=? where"
+              + " id=?",
+          percent,
+          refund,
+          "PENDING".equals(p.get("status")) ? "CANCELLED" : p.get("status"),
+          id);
+      p = one("id=?", id);
+    }
+    return new Settlement(
+        id.toString(),
+        p.get("merchant_reference").toString(),
+        (BigDecimal) p.get("amount"),
+        p.get("currency").toString(),
+        p.get("status").toString(),
+        ((Number) p.get("cancellation_percent")).intValue(),
+        (BigDecimal) p.get("refunded_amount"));
   }
 
   public Map<String, Object> event(UUID id) {

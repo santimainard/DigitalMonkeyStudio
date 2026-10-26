@@ -266,7 +266,7 @@ paths:
         schema: *id001
   /admin/ventures/{id}/verification:
     patch:
-      summary: Aprobar emprendimiento como administrador
+      summary: Aprobar o denegar emprendimiento como administrador
       responses:
         '200':
           description: Resultado
@@ -300,10 +300,50 @@ paths:
                   type: string
                   enum:
                   - VERIFIED
+                  - DENIED
+                reason:
+                  type: string
+                  maxLength: 2000
+                  description: Motivo obligatorio cuando status es DENIED.
+                allowRetry:
+                  type: boolean
+                  default: false
+                  description: Permite al prestador presentar una nueva solicitud después de la denegación.
               required:
               - status
       security:
       - adminBasic: []
+  /reservations/{id}/cancellation:
+    post:
+      summary: Cancelar una reserva propia antes del inicio
+      description: >-
+        Requiere sesión TOURIST y X-CSRF-TOKEN. Usa la política guardada en la reserva.
+        Idempotente por reserva. Devuelve la reserva y cancellation con requestedBy,
+        refundPercent, requestedAt, completedAt y refundedAmount.
+        completedAt nulo indica conciliación pendiente, no una devolución finalizada.
+        Si cancela una instancia el prestador, se devuelve el 100 % de las reservas vigentes.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Reserva con estado de su cancelación e importe reembolsado
+          content:
+            application/json:
+              schema: {type: object}
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
   /reservations:
     post:
       summary: Crear reserva idempotente y solicitar pago
@@ -511,6 +551,7 @@ components:
           enum:
           - PENDING
           - VERIFIED
+          - DENIED
         contactEmail: *id004
         phone: *id004
         departmentId: *id001
@@ -638,6 +679,28 @@ components:
         checkoutUrl:
           type: string
           nullable: true
+        fullRefundMinutes:
+          type: integer
+          minimum: 0
+          description: Anticipación para reembolso total, guardada al reservar.
+        lateRefundPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        refundPercent:
+          type: integer
+          description: Porcentaje que correspondería al cancelar en este momento.
+        canCancel:
+          type: boolean
+        cancellation:
+          type: object
+          nullable: true
+          properties:
+            requestedBy: {type: string, enum: [TOURIST, PROVIDER]}
+            refundPercent: {type: integer, minimum: 0, maximum: 100}
+            requestedAt: {type: string, format: date-time}
+            completedAt: {type: string, format: date-time, nullable: true}
+            refundedAmount: {type: number, nullable: true}
         canReview:
           type: boolean
       required:

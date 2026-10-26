@@ -63,7 +63,30 @@ public class PaymentClient {
         ref);
   }
 
+  public record Settlement(
+      String paymentId,
+      String merchantReference,
+      BigDecimal amount,
+      String currency,
+      String status,
+      int refundPercent,
+      BigDecimal refundedAmount) {}
+
+  public Settlement cancel(String id, int percent) {
+    return request(
+        "POST",
+        "/payments/" + id + "/cancellation",
+        Map.of("refundPercent", percent),
+        null,
+        Settlement.class);
+  }
+
   private RemotePayment call(String method, String path, Object body, String idempotency) {
+    return request(method, path, body, idempotency, RemotePayment.class);
+  }
+
+  private <T> T request(
+      String method, String path, Object body, String idempotency, Class<T> type) {
     try {
       var request =
           HttpRequest.newBuilder(URI.create(base + path))
@@ -80,7 +103,7 @@ public class PaymentClient {
       if (response.statusCode() == 404) return null;
       if (response.statusCode() / 100 != 2)
         throw new IllegalStateException("Servicio externo devolvió " + response.statusCode());
-      return json.readValue(response.body(), RemotePayment.class);
+      return json.readValue(response.body(), type);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Pago interrumpido", e);

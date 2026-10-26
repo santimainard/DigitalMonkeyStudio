@@ -22,18 +22,21 @@ public class WebController {
   private final Tourism tourism;
   private final ReservationTransactions reservations;
   private final Payments payments;
+  private final CancellationTransactions cancellations;
 
   public WebController(
       Database db,
       Accounts accounts,
       Tourism tourism,
       ReservationTransactions reservations,
-      Payments payments) {
+      Payments payments,
+      CancellationTransactions cancellations) {
     this.db = db;
     this.accounts = accounts;
     this.tourism = tourism;
     this.reservations = reservations;
     this.payments = payments;
+    this.cancellations = cancellations;
   }
 
   @InitBinder
@@ -54,6 +57,11 @@ public class WebController {
   }
 
   @GetMapping("/")
+  String entry() {
+    return "redirect:/dashboard";
+  }
+
+  @GetMapping("/explore")
   String home(
       @RequestParam(defaultValue = "") String q,
       @RequestParam(required = false) Long departmentId,
@@ -156,6 +164,20 @@ public class WebController {
     return "redirect:/tourist/reservations/" + id;
   }
 
+  @PostMapping("/tourist/reservations/{id}/cancel")
+  String cancel(@PathVariable UUID id) {
+    cancellations.tourist(id);
+    payments.settleCancellation(id);
+    return "redirect:/tourist/reservations/" + id;
+  }
+
+  @PostMapping("/provider/activities/{id}/instances/{instanceId}/cancel")
+  String cancelInstance(@PathVariable long id, @PathVariable long instanceId) {
+    for (UUID reservation : cancellations.provider(id, instanceId))
+      payments.settleCancellation(reservation);
+    return "redirect:/provider/activities/" + id + "/instances";
+  }
+
   @GetMapping("/tourist/reservations")
   String history(@RequestParam(defaultValue = "0") int page, Model m) {
     Tourism.page(page);
@@ -186,6 +208,8 @@ public class WebController {
   String refresh(@PathVariable UUID id) {
     reservations.detail(id);
     payments.synchronize(id);
+    if (db.count("select count(*) from cancellation where reservation_id=?", id) > 0)
+      payments.settleCancellation(id);
     return "redirect:/tourist/reservations/" + id;
   }
 
@@ -197,9 +221,33 @@ public class WebController {
     return "redirect:/tourist/reservations/" + id;
   }
 
+  @ModelAttribute
+  void providerGate(jakarta.servlet.http.HttpServletRequest request) {
+    String path = request.getRequestURI().substring(request.getContextPath().length());
+    if (path.startsWith("/provider/") && !path.equals("/provider/reapply"))
+      accounts.verifiedProvider();
+  }
+
+  @PostMapping("/provider/reapply")
+  String reapply() {
+    accounts.reapply();
+    return "redirect:/provider";
+  }
+
+  @PostMapping("/admin/ventures/{id}/deny")
+  String deny(
+      @PathVariable long id,
+      @RequestParam String reason,
+      @RequestParam(defaultValue = "false") boolean allowRetry) {
+    accounts.deny(id, reason, allowRetry);
+    return "redirect:/admin";
+  }
+
   @GetMapping("/provider")
   String provider(Model m) {
-    m.addAttribute("venture", accounts.venture());
+    var venture = accounts.venture();
+    m.addAttribute("venture", venture);
+    if (!"VERIFIED".equals(venture.get("verification_status"))) return "provider-status";
     m.addAttribute(
         "activities",
         db.list(
@@ -239,6 +287,8 @@ public class WebController {
     f.unitPrice = (BigDecimal) a.get("unit_price");
     f.durationMinutes = (Integer) a.get("duration_minutes");
     f.bookingLeadMinutes = (Integer) a.get("booking_lead_minutes");
+    f.fullRefundMinutes = (Integer) a.get("full_refund_minutes");
+    f.lateRefundPercent = (Integer) a.get("late_refund_percent");
     f.departmentId = ((Number) a.get("department_id")).longValue();
     f.localityId = ((Number) a.get("locality_id")).longValue();
     f.locationDescription = (String) a.get("location_description");
@@ -302,7 +352,8 @@ public class WebController {
     String from =
         " from reservation r join payment p on p.reservation_id=r.id join activity_instance i on"
             + " i.id=r.instance_id join activity a on a.id=i.activity_id join venture v on"
-            + " v.id=a.venture_id join app_user u on u.id=r.tourist_id where v.owner_id=?";
+            + " v.id=a.venture_id join app_user u on u.id=r.tourist_id left join cancellation c on"
+            + " c.reservation_id=r.id where v.owner_id=?";
     List<Object> args = new ArrayList<>(List.of(accounts.id()));
     if (activityId != null) {
       from += " and a.id=?";
@@ -322,7 +373,11 @@ public class WebController {
         "result",
         Tourism.pagination(
             db.list(
-                "select r.*,p.status payment_status,u.first_name,u.last_name,u.email,u.document"
+                "select r.*,p.status"
+                    + " payment_status,u.first_name,u.last_name,u.email,u.document,c.requested_at"
+                    + " cancellation_requested_at,c.completed_at"
+                    + " cancellation_completed_at,c.refunded_amount,c.refund_percent"
+                    + " cancellation_refund_percent"
                     + from
                     + " order by r.created_at desc,r.id limit 20 offset ?",
                 args.toArray()),

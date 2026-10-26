@@ -26,7 +26,7 @@
 <span th:text="|${result.totalElements} actividades|">
 </span>
 </div>
-<form th:action="@{/}" method="get" class="filters location-group">
+<form th:action="@{/explore}" method="get" class="filters location-group">
 <label>Buscar<input name="q" placeholder="Actividad o emprendimiento" th:value="${param.q}">
 </label>
 <label>Departamento<select name="departmentId" class="department">
@@ -54,7 +54,7 @@
 </label>
 <div class="actions">
 <button>Buscar</button>
-<a th:href="@{/}">Limpiar filtros</a>
+<a th:href="@{/explore}">Limpiar filtros</a>
 </div>
 </form>
 <div class="empty" th:if="${#lists.isEmpty(result.content)}">No encontramos actividades con esos filtros.</div>
