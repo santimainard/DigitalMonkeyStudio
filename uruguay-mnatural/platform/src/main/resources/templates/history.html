@@ -1,62 +1,26 @@
 <!doctype html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mis reservas · Uruguay Mnatural</title>
-<link rel="stylesheet" th:href="@{/css/app.css}">
-<script defer th:src="@{/js/app.js}">
-</script>
-</head>
-<body>
-<header th:replace="~{fragments :: header}">
-</header>
-<main>
-<div class="notice success" th:if="${success}" th:text="${success}">
-</div>
-<div class="section-title">
-<h1>Mis reservas</h1>
-<a th:href="@{/explore}">Buscar una experiencia</a>
-</div>
-<p class="empty" th:if="${#lists.isEmpty(result.content)}">Todavía no tenés reservas.</p>
-<div class="table-wrap">
-<table th:unless="${#lists.isEmpty(result.content)}">
-<thead>
-<tr>
-<th>Actividad</th>
-<th>Fecha</th>
-<th>Personas</th>
-<th>Total</th>
-<th>Estado</th>
-<th>
-</th>
-</tr>
-</thead>
-<tbody>
-<tr th:each="r:${result.content}">
-<td th:text="${r.activity_name_snapshot}">
-</td>
-<td th:text="${@fmt.date(r.starts_at_snapshot)}">
-</td>
-<td th:text="${r.participant_count}">
-</td>
-<td th:text="|UYU ${r.total_amount}|">
-</td>
-<td>
-<span class="badge" th:text="${@fmt.state(r.status)}">
-</span>
-</td>
-<td>
-<a th:href="@{/tourist/reservations/{id}(id=${r.id})}">Ver detalle</a>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div th:replace="~{fragments :: pagination(${result})}">
-</div>
-</main>
-<footer th:replace="~{fragments :: footer}">
-</footer>
-</body>
-</html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi espacio · Uruguay Mnatural</title><link rel="stylesheet" th:href="@{/css/app.css}"><link rel="stylesheet" th:href="@{/css/workspace.css}"><script defer th:src="@{/js/app.js}"></script></head>
+<body class="workspace-page">
+<header th:replace="~{fragments :: workspaceHeader}"></header>
+<div class="workspace-shell"><aside th:replace="~{fragments :: workspaceRail('TOURIST', true)}"></aside>
+<main class="workspace-content" id="resumen">
+<div class="workspace-breadcrumb">MI ESPACIO <span>/</span> TURISTA</div>
+<div class="workspace-heading"><div><h1>Hola, <em th:text="${viewer.first_name}"></em>.</h1><p>Un respiro de la rutina empieza por un buen plan.</p></div><a class="ws-button" th:href="@{/explore}">Encontrar una experiencia <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div>
+<div class="notice success" th:if="${success}" th:text="${success}"></div>
+<section class="workspace-stats" aria-label="Resumen de mis reservas"><div><span class="stat-label">PRÓXIMAS SALIDAS</span><strong th:text="${upcomingCount}"></strong><span>reservas confirmadas</span></div><div><span class="stat-label">POR RESOLVER</span><strong th:text="${pendingCount}"></strong><span>pagos pendientes de confirmación</span></div><div><span class="stat-label">EXPERIENCIAS PARA CONTAR</span><strong th:text="${reviewCount}"></strong><span>reseñas que podés escribir</span></div></section>
+<div class="workspace-columns"><div class="workspace-primary">
+<section class="trip-feature" th:if="${nextReservation != null}"><div class="feature-overline"><span class="status-dot"></span>TU PRÓXIMA SALIDA<span class="ws-tag">Confirmada</span></div><div class="trip-feature-body"><div class="date-stamp"><strong th:text="${@fmt.day(nextReservation.starts_at_snapshot)}"></strong><span th:text="${@fmt.month(nextReservation.starts_at_snapshot)}"></span></div><div><h2 th:text="${nextReservation.activity_name_snapshot}"></h2><p class="trip-date" th:text="${@fmt.longDate(nextReservation.starts_at_snapshot)}"></p><p class="trip-location"><svg th:replace="~{fragments :: icon('pin')}"></svg><span th:text="${nextReservation.location_snapshot}"></span></p></div></div><div class="trip-feature-footer"><span th:text="|${nextReservation.participant_count} participante(s) · UYU ${nextReservation.total_amount}|"></span><a th:href="@{/tourist/reservations/{id}(id=${nextReservation.id})}">Ver mi reserva <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div></section>
+<section class="journey-invitation" th:if="${nextReservation == null}"><div><span class="section-overline">HACETE UN LUGAR</span><h2>Un rato<br><em>afuera.</em></h2><p th:text="${pendingCount > 0 ? 'Tenés pagos por resolver. Revisá tus reservas para confirmar el estado de tu próxima experiencia.' : 'Sierras, costa o una escapada cerca. Encontrá esa experiencia que te saca de lo de siempre.'}"></p><a class="text-link" th:href="${pendingCount > 0 ? '#mis-reservas' : '/explore'}" ><span th:text="${pendingCount > 0 ? 'Revisar mis reservas' : 'Empezar a explorar'}"></span><svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div><svg th:replace="~{fragments :: routeArt}"></svg></section>
+<section class="workspace-section" id="mis-reservas"><div class="section-heading"><div><span class="section-overline">TU RECORRIDO</span><h2>Mis reservas <span class="heading-count" th:text="${result.totalElements}"></span></h2></div><span class="section-note">Más recientes primero</span></div>
+<div class="workspace-empty" th:if="${result.totalElements == 0}"><svg th:replace="~{fragments :: icon('note')}"></svg><div><h3>Tu historia empieza con la primera salida.</h3><p>Cuando reserves, vas a encontrar acá tus fechas, pagos y constancias.</p><a class="text-link" th:href="@{/explore}">Elegir mi primera experiencia <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div></div>
+<p class="aside-empty" th:if="${result.totalElements > 0 and #lists.isEmpty(result.content)}">No hay reservas en esta página. <a th:href="@{/tourist/reservations}">Volver a mis reservas</a></p>
+<div class="reservation-list"><a class="reservation-row" th:each="r:${result.content}" th:href="@{/tourist/reservations/{id}(id=${r.id})}"><div class="list-date"><strong th:text="${@fmt.day(r.starts_at_snapshot)}"></strong><span th:text="${@fmt.month(r.starts_at_snapshot)}"></span></div><div class="reservation-name"><h3 th:text="${r.activity_name_snapshot}"></h3><span th:text="|${@fmt.date(r.starts_at_snapshot)} · ${r.participant_count} participante(s)|"></span></div><div class="reservation-amount"><strong th:text="|UYU ${r.total_amount}|"></strong><span class="ws-tag" th:attr="data-state=${r.status}" th:text="${@fmt.state(r.status)}"></span></div><svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div>
+<div th:replace="~{fragments :: pagination(${result})}"></div></section>
+</div><aside class="workspace-aside">
+<section class="workspace-note" id="opiniones"><span class="note-icon"><svg th:replace="~{fragments :: icon('star')}"></svg></span><span class="section-overline">DESPUÉS DE LA EXPERIENCIA</span><h2>Vale la pena<br>contarlo.</h2><p th:if="${reviewCount == 0}">Tu opinión ayuda a otros a elegir. Cuando termine una actividad que hayas pagado, vas a poder dejar tu reseña acá.</p><p th:if="${reviewCount > 0}" th:text="|Tenés ${reviewCount} experiencia(s) listas para reseñar. ¿Cómo la pasaste?|"></p><a class="review-link" th:each="r:${reviewReservations}" th:href="@{/tourist/reservations/{id}(id=${r.id})}"><span th:text="${r.activity_name_snapshot}"></span> <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></section>
+<section class="workspace-help"><h3>Todo en su lugar.</h3><div><span>01</span><p><strong>Tu reserva, al día.</strong>Consultá el pago y la constancia desde el detalle.</p></div><div><span>02</span><p><strong>¿Cambio de planes?</strong>Antes del inicio, revisá el reembolso que corresponde y cancelá desde tu reserva.</p></div><div><span>03</span><p><strong>Sin apuro, con tiempo.</strong>Los cupos se retienen durante el plazo de pago. Si hay una demora, verificá el estado antes de reservar de nuevo.</p></div></section>
+</aside></div>
+<section class="workspace-section inspiration-section" th:if="${!#lists.isEmpty(inspiration)}"><div class="section-heading"><div><span class="section-overline">CERCA O UN POCO MÁS LEJOS</span><h2>Uruguay tiene otros planes.</h2></div><a class="text-link" th:href="@{/explore}">Ver todas las experiencias <svg th:replace="~{fragments :: icon('arrow')}"></svg></a></div><div class="inspiration-grid"><a th:each="a,loop:${inspiration}" class="inspiration-item" th:href="@{/activities/{id}(id=${a.id})}"><span class="inspiration-number" th:text="|0${loop.count}|"></span><span class="section-overline" th:text="${a.department_name}"></span><h3 th:text="${a.name}"></h3><div><span th:text="|UYU ${a.unit_price} / persona|"></span><svg th:replace="~{fragments :: icon('arrow')}"></svg></div></a></div></section>
+<footer class="workspace-footer"><span>Uruguay Mnatural</span><span>Menos rutina. Más historias.</span></footer>
+</main></div></body></html>

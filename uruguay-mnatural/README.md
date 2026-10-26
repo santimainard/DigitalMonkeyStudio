@@ -35,6 +35,10 @@ El primer inicio descarga imágenes y dependencias. No hace falta instalar Java,
 
 En macOS/Linux: `sh scripts/setup.sh` y `docker compose up --build`.
 
+## Mi espacio
+
+Cada rol tiene un panel propio con navegación, resumen y acciones de su cuenta. El turista ve sus próximas salidas y reservas; el prestador, su agenda y actividades; el administrador, la revisión de emprendimientos y los catálogos. Los estados pendiente y denegado tienen una vista informativa sin funciones operativas. El diseño se adapta a escritorio y móvil y funciona con recursos locales, sin fuentes ni bibliotecas visuales externas.
+
 ## Cuentas
 
 | Rol | Correo | Contraseña local |

@@ -2,7 +2,7 @@
 
 ## Verificación de la actualización de cancelaciones y permisos
 
-La ejecución en el entorno de desarrollo en la nube pasó **53 pruebas: 0 fallos, 0 errores y 0 omitidas**, con JDK 21, Maven 3.9.9 y Docker. Se ejecutaron BookingRulesTest (5), PaymentHttpTest (2), PlatformIntegrationTest con H2 (18), PostgresIntegrationTest con PostgreSQL 16 real (18), RegistrationChecksTest (3) y SimulatorTest (7).
+La ejecución en el entorno de desarrollo en la nube pasó **55 pruebas: 0 fallos, 0 errores y 0 omitidas**, con JDK 21, Maven 3.9.9 y Docker. Se ejecutaron BookingRulesTest (5), PaymentHttpTest (2), PlatformIntegrationTest con H2 (19), PostgresIntegrationTest con PostgreSQL 16 real (19), RegistrationChecksTest (3) y SimulatorTest (7).
 
 La cobertura de registro también prueba, para turistas y prestadores, confirmación de contraseña vacía, distinta y coincidente; comprueba que no haya altas inválidas ni contraseñas reflejadas en el HTML de error.
 
@@ -14,7 +14,7 @@ Para repetir: `sh ./mvnw verify` en Linux (o `.\mvnw.cmd verify` en Windows) con
 
 También se arrancaron los dos JAR sobre las bases PostgreSQL de desarrollo existentes: Flyway aplicó tourism V3/V4/V5 y payments V2, ambos servicios devolvieron salud UP y la API recuperó la actividad de demostración con sus instancias. No se borraron volúmenes.
 
-El resto de este documento es el registro histórico de la entrega inicial; sus nueve omisiones no describen esta nueva ejecución. La inspección visual en navegador y el empaquetado de las aplicaciones en imágenes Docker siguen fuera de esta comprobación; las pruebas de PostgreSQL sí se ejecutaron mediante Docker.
+El resto de este documento es el registro histórico de la entrega inicial; sus nueve omisiones no describen esta nueva ejecución. La inspección visual de los paneles se detalla en Rediseño de Mi espacio. El empaquetado de las aplicaciones en imágenes Docker queda fuera de esta comprobación; las pruebas de PostgreSQL sí se ejecutaron mediante Docker.
 
 
 Fecha: 5 de octubre de 2026. Compilación ejecutada con OpenJDK 17 y Maven 3.9.9.
@@ -78,3 +78,19 @@ NODE_PATH=/tmp/um-dom/node_modules node scripts/registration-dom-test.cjs
 ```
 
 Estas pruebas usan el HTML y JavaScript servidos por la aplicación. No equivalen a una inspección visual en navegador: la descarga de Chromium no estuvo disponible por la política de red del entorno. La migración V5 se aplicó sobre la base PostgreSQL de desarrollo existente y ambos servicios arrancaron correctamente.
+
+## Rediseño de Mi espacio
+
+Se comprobaron los resúmenes de cada cuenta, incluidos conteos globales independientes de la página del historial, próxima reserva confirmada, agenda del prestador y ausencia de datos operativos para prestadores no habilitados. Los indicadores usan datos persistidos y no sustituyen las validaciones de reserva/pago.
+
+Se ejecutó `scripts/workspace-browser-test.cjs` con Playwright y Chromium del sistema sobre los dos servicios y PostgreSQL de desarrollo. Se capturaron los paneles de turista (sin próxima salida y con reserva confirmada), prestador, administrador y prestador pendiente/denegado en 1440×1000 y 390×844. Se revisaron las capturas y se verificó que no hubiera desbordamiento horizontal ni errores JavaScript. También se probaron los filtros administrativos y el motivo de denegación.
+
+Para repetir con datos de demostración y ambas aplicaciones iniciadas:
+
+```sh
+CHROMIUM_PATH=/usr/bin/chromium node scripts/workspace-browser-test.cjs
+```
+
+Requiere el paquete Playwright disponible en Node.js y Chromium instalado. El script lee credenciales locales desde las variables de proceso o `.env`, sin imprimirlas. Es exclusivo de desarrollo local: crea dos prestadores ficticios para comprobar sus estados y una reserva de demostración que cancela al terminar. Las capturas quedan en `/tmp/um-workspaces`; no se versionan credenciales ni imágenes de las pruebas.
+
+La comprobación visual anterior pendiente corresponde a la entrega inicial. Los paneles de esta actualización sí se inspeccionaron en un navegador real.

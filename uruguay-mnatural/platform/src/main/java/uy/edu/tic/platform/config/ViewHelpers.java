@@ -25,6 +25,28 @@ public class ViewHelpers {
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
   }
 
+  public String day(Object date) {
+    return BookingRules.instant(date)
+        .atZone(Tourism.ZONE)
+        .format(DateTimeFormatter.ofPattern("dd"));
+  }
+
+  public String month(Object date) {
+    return BookingRules.instant(date)
+        .atZone(Tourism.ZONE)
+        .format(DateTimeFormatter.ofPattern("MMM", Locale.forLanguageTag("es-UY")));
+  }
+
+  public String longDate(Object date) {
+    return date == null
+        ? ""
+        : BookingRules.instant(date)
+            .atZone(Tourism.ZONE)
+            .format(
+                DateTimeFormatter.ofPattern(
+                    "EEEE d 'de' MMMM · HH:mm", Locale.forLanguageTag("es-UY")));
+  }
+
   public String rating(Object n) {
     return n == null
         ? "Sin valoraciones"
