@@ -52,7 +52,8 @@ public class WebController {
   }
 
   @ModelAttribute
-  void common(Model m) {
+  void common(Model m, jakarta.servlet.http.HttpServletRequest request) {
+    m.addAttribute("currentPath", request.getRequestURI());
     m.addAttribute("departments", db.list("select * from department order by name"));
     m.addAttribute("localities", db.list("select * from locality order by name"));
     m.addAttribute("categories", db.list("select * from category order by name"));
@@ -165,7 +166,7 @@ public class WebController {
     m.addAttribute("instance", i);
     m.addAttribute("activity", a);
     m.addAttribute("count", participantCount);
-    m.addAttribute("total", BookingRules.total((BigDecimal) a.get("unit_price"), participantCount));
+    m.addAttribute("total", BookingRules.total((BigDecimal) i.get("unit_price"), participantCount));
     m.addAttribute("key", UUID.randomUUID().toString());
     return "prepare";
   }
@@ -193,9 +194,19 @@ public class WebController {
 
   @GetMapping("/tourist/reservations")
   String history(@RequestParam(defaultValue = "0") int page, Model m) {
+    return touristPage(page, m, "reservations");
+  }
+
+  @GetMapping("/tourist/reviews")
+  String touristReviews(Model m) {
+    return touristPage(0, m, "reviews");
+  }
+
+  private String touristPage(int page, Model m, String section) {
     Tourism.page(page);
     reservations.complete();
     workspace.tourist(m);
+    m.addAttribute("touristSection", section);
     long total = db.count("select count(*) from reservation where tourist_id=?", accounts.id());
     m.addAttribute(
         "result",
@@ -254,14 +265,34 @@ public class WebController {
   @PostMapping("/admin/ventures/{id}/deny")
   String deny(@PathVariable long id, @RequestParam String reason) {
     accounts.deny(id, reason);
-    return "redirect:/admin";
+    return "redirect:/admin/ventures";
   }
 
   @GetMapping("/provider")
   String provider(Model m) {
+    return providerPage(m, "overview");
+  }
+
+  @GetMapping("/provider/activities")
+  String providerActivities(Model m) {
+    return providerPage(m, "activities");
+  }
+
+  @GetMapping("/provider/agenda")
+  String providerAgenda(Model m) {
+    return providerPage(m, "agenda");
+  }
+
+  @GetMapping("/provider/venture")
+  String providerVenture(Model m) {
+    return providerPage(m, "venture");
+  }
+
+  private String providerPage(Model m, String section) {
     var venture = accounts.venture();
     m.addAttribute("venture", venture);
     if (!"VERIFIED".equals(venture.get("verification_status"))) return "provider-status";
+    m.addAttribute("providerSection", section);
     workspace.provider(m);
     m.addAttribute(
         "activities",
@@ -284,7 +315,7 @@ public class WebController {
     accounts.updateVenture(
         contactEmail, phone, departmentId, localityId, locationDescription, description);
     flash.addFlashAttribute("success", "Emprendimiento actualizado.");
-    return "redirect:/provider";
+    return "redirect:/provider/venture";
   }
 
   @GetMapping("/provider/activities/new")
@@ -351,8 +382,9 @@ public class WebController {
       @RequestParam(required = false) Long instanceId,
       @RequestParam(required = false) LocalDateTime startsAt,
       @RequestParam(required = false) Integer capacity,
+      @RequestParam(required = false) BigDecimal unitPrice,
       @RequestParam(defaultValue = "false") boolean delete) {
-    tourism.saveInstance(id, instanceId, startsAt, capacity, delete);
+    tourism.saveInstance(id, instanceId, startsAt, capacity, unitPrice, delete);
     return "redirect:/provider/activities/" + id + "/instances";
   }
 
@@ -413,7 +445,22 @@ public class WebController {
 
   @GetMapping("/admin")
   String admin(Model m) {
+    return adminPage(m, "overview");
+  }
+
+  @GetMapping("/admin/ventures")
+  String adminVentures(Model m) {
+    return adminPage(m, "ventures");
+  }
+
+  @GetMapping("/admin/catalogs")
+  String adminCatalogs(Model m) {
+    return adminPage(m, "catalogs");
+  }
+
+  private String adminPage(Model m, String section) {
     accounts.role("ADMIN");
+    m.addAttribute("adminSection", section);
     m.addAttribute(
         "pendingVentures",
         db.count(
@@ -436,7 +483,7 @@ public class WebController {
   @PostMapping("/admin/ventures/{id}/approve")
   String approve(@PathVariable long id) {
     accounts.approve(id);
-    return "redirect:/admin";
+    return "redirect:/admin/ventures";
   }
 
   @PostMapping("/admin/catalogs/{kind}")
@@ -446,6 +493,6 @@ public class WebController {
       @RequestParam(defaultValue = "") String name,
       @RequestParam(defaultValue = "save") String action) {
     tourism.catalog(kind, id, name, action);
-    return "redirect:/admin";
+    return "redirect:/admin/catalogs";
   }
 }

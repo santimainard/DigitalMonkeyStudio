@@ -304,7 +304,16 @@ public class Tourism {
   @Transactional
   public void saveInstance(
       long activityId, Long id, LocalDateTime localStart, Integer capacity, boolean delete) {
+    saveInstance(activityId, id, localStart, capacity, null, delete);
+  }
+
+  @Transactional
+  public void saveInstance(
+      long activityId, Long id, LocalDateTime localStart, Integer capacity,
+      BigDecimal unitPrice, boolean delete) {
     var a = owned(activityId);
+    if (!delete && unitPrice != null && (unitPrice.signum() <= 0 || unitPrice.scale() > 2))
+      throw new BusinessException("INVALID_INPUT", "Precio inválido.");
     if (capacity != null && capacity < 1)
       throw new BusinessException("INVALID_INPUT", "Cupo positivo o vacío para ilimitado.");
     Instant start = localStart == null ? null : localStart.atZone(ZONE).toInstant();
@@ -312,11 +321,12 @@ public class Tourism {
       if (start == null || !start.isAfter(clock.instant()))
         throw new BusinessException("INVALID_INPUT", "La instancia debe ser futura.");
       db.insert(
-          "insert into activity_instance(activity_id,starts_at,ends_at,capacity) values(?,?,?,?)",
+          "insert into activity_instance(activity_id,starts_at,ends_at,capacity,unit_price) values(?,?,?,?,?)",
           activityId,
           utc(start),
           utc(start.plusSeconds(((Integer) a.get("duration_minutes")) * 60L)),
-          capacity);
+          capacity,
+          unitPrice == null ? a.get("unit_price") : unitPrice);
       return;
     }
     var i =
@@ -353,10 +363,11 @@ public class Tourism {
             ? instant(i.get("ends_at"))
             : start.plusSeconds((Integer) a.get("duration_minutes") * 60L);
     db.update(
-        "update activity_instance set starts_at=?,ends_at=?,capacity=? where id=?",
+        "update activity_instance set starts_at=?,ends_at=?,capacity=?,unit_price=? where id=?",
         utc(start),
         utc(end),
         capacity,
+        unitPrice == null ? i.get("unit_price") : unitPrice,
         id);
   }
 

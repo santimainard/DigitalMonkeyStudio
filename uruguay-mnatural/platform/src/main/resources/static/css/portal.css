@@ -1,0 +1,114 @@
+/* Operational screens share Explore's typography, controls and card geometry. */
+.workspace-page { --portal-surface: #fffdf9; font-size: 15px; }
+.workspace-page .workspace-header { min-height: 76px; }
+.workspace-page .workspace-shell { border: 0; }
+.workspace-page .workspace-rail { padding: 0 24px; background: transparent; }
+.workspace-page .workspace-nav { gap: 20px; }
+.workspace-page .workspace-nav a { padding: 18px 2px 15px; border-radius: 0; border-bottom: 3px solid transparent; font-size: 14px; min-height: 55px; }
+.workspace-page .workspace-nav a:hover { background: transparent; color: #a6442d; }
+.workspace-page .workspace-nav a.is-current { border-bottom: 3px solid #a6442d; background: transparent; color: #853723; }
+.workspace-page .workspace-content { padding-top: 30px; }
+.workspace-page .workspace-breadcrumb { font-size: 10px; margin-bottom: 18px; letter-spacing: .09em; }
+.workspace-page .workspace-heading { background: transparent; border: 0; border-radius: 0; padding: 0 0 26px; margin-bottom: 0; align-items: center; }
+.workspace-page .workspace-heading h1 { font-size: clamp(32px, 3.6vw, 44px); line-height: 1.15; margin: 0 0 10px; }
+.workspace-page .workspace-heading p { font-size: 15px; max-width: 65ch; }
+.workspace-page .workspace-heading .ws-button { font-size: 14px; padding: 13px 20px; margin: 0; }
+.workspace-page .workspace-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; border: 0; background: transparent; border-radius: 0; overflow: visible; }
+.workspace-page .workspace-stats > div,
+.workspace-page .workspace-stats > div + div { border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; background: var(--portal-surface); gap: 5px; }
+.workspace-page .workspace-stats strong { font-size: 36px; line-height: 1.1; color: var(--ink); }
+.workspace-page .stat-label { font-size: 10px; letter-spacing: .08em; }
+.workspace-page .workspace-stats div > span:last-child { font-size: 12px; }
+.workspace-page .workspace-columns { gap: 24px; }
+.workspace-page .workspace-section h2 { font-size: 28px; }
+.workspace-page .section-overline { font-size: 10px; }
+.workspace-page .workspace-note { padding: 24px; }
+.workspace-page .workspace-note h2 { font-size: 27px; }
+.workspace-page .workspace-note p, .workspace-page .workspace-help p { font-size: 14px; line-height: 1.6; }
+.workspace-page .venture-identity { padding: 24px; background: #eee6da; border-color: #e1d5c3; }
+.workspace-page .venture-identity h2 { font-size: 28px; }
+.workspace-page .venture-identity p { font-size: 14px; }
+.workspace-page .venture-monogram { font-family: "Fraunces",Georgia,serif; font-style: normal; border-radius: 12px; background: #fffdf9; color: #a6442d; }
+.workspace-page .overview-agenda { margin-top: 28px; padding: 26px; background: var(--portal-surface); border: 1px solid var(--line); border-radius: 16px; }
+.workspace-page .overview-agenda h2 { font-size: 26px; }
+.workspace-page .overview-agenda .section-heading > a { font-size: 13px; white-space: nowrap; color: #a6442d; font-weight: 650; }
+.workspace-page .overview-date { display: flex; align-items: center; gap: 18px; padding: 18px 0; border-top: 1px solid var(--line); text-decoration: none; }
+.workspace-page .overview-date:hover { color: #a6442d; }
+.workspace-page .overview-date > span:nth-child(2) { min-width: 0; flex: 1; }
+.workspace-page .overview-date small { margin-top: 3px; }
+.workspace-page .overview-date-count { color: var(--muted); font-size: 13px; }
+.workspace-page .provider-shortcuts { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; }
+.workspace-page .provider-shortcuts a { padding: 20px; min-height: 118px; justify-content: space-between; }
+.workspace-page .provider-shortcuts strong { font-size: 16px; }
+.workspace-page .provider-shortcuts span { font-size: 12px; }
+.workspace-page .provider-view-activities { grid-template-columns: minmax(0,1fr); }
+.workspace-page .provider-view-activities > .workspace-aside { display: none; }
+.workspace-page .provider-activity-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.workspace-page .provider-activity-grid .activity-entry { display: block; padding: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--portal-surface); }
+.workspace-page .activity-card-top { display: flex; align-items: center; gap: 10px; height: 78px; padding: 24px; background: #e9e1d5; color: #6d4e3d; font-size: 10px; letter-spacing: .12em; font-weight: 700; }
+.workspace-page .provider-activity-grid .activity-entry:nth-child(even) .activity-card-top { background: #dce7e0; color: #385b51; }
+.workspace-page .provider-activity-grid .activity-entry-body { padding: 24px; }
+.workspace-page .provider-activity-grid .activity-entry-title { align-items: start; justify-content: space-between; }
+.workspace-page .provider-activity-grid h3 { font-size: 21px; line-height: 1.3; }
+.workspace-page .provider-activity-grid .activity-entry-body > p { font-size: 14px; margin: 16px 0; }
+.workspace-page .provider-activity-grid .activity-entry-actions { border-top: 1px solid var(--line); padding-top: 16px; margin: 0; gap: 14px; font-size: 12px; flex-wrap: wrap; }
+.workspace-page .ws-tag { font-size: 11px; letter-spacing: 0; white-space: nowrap; }
+.workspace-page .workspace-disclosure { padding: 0 24px 24px; background: var(--portal-surface); border: 1px solid var(--line); border-radius: 14px; }
+.workspace-page .workspace-disclosure summary { padding: 20px 0; font-size: 15px; }
+.workspace-page .profile-description { padding: 24px; background: var(--portal-surface); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 20px; }
+.workspace-page .activity-editor { max-width: none; }
+.workspace-page .activity-editor-form { max-width: 940px; margin: 0 auto; padding: 32px; }
+.workspace-page .activity-editor-form fieldset { padding: 22px; background: #f7f4ee; }
+.workspace-page .activity-editor-form .check { min-height: 34px; }
+.workspace-page .task-page-title { margin: 0 0 24px; }
+.workspace-page .reservation-filters { grid-template-columns: repeat(3,minmax(0,1fr)) auto; align-items: end; }
+.workspace-page .reservation-filters button { margin-bottom: 0; }
+.workspace-page .portal-table { border: 1px solid var(--line); border-radius: 14px; background: var(--portal-surface); }
+.workspace-page .portal-table th { background: #f0ebe3; white-space: nowrap; font-size: 12px; }
+.workspace-page .portal-table td { padding: 20px 16px; }
+.workspace-page .venture-review { padding: 0 24px; margin-bottom: 12px; background: var(--portal-surface); border: 1px solid var(--line); border-radius: 14px; }
+.workspace-page .venture-review summary { padding: 22px 0; }
+.workspace-page .review-name > strong { font-size: 16px; }
+.workspace-page .review-name > small { font-size: 12px; }
+.workspace-page .catalog-grid { gap: 20px; }
+.workspace-page .workspace-catalog { background: var(--portal-surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px 22px; }
+.workspace-page .workspace-catalog > summary { font-size: 16px; }
+.workspace-page .reservation-row { padding: 22px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--portal-surface); }
+.workspace-page .reservation-name h3 { font-size: 17px; }
+.workspace-page .reservation-name > span { font-size: 13px; }
+.workspace-page .reservation-amount > strong { font-size: 14px; }
+.workspace-page .trip-feature { padding: 24px 28px 0; background: #e5ece6; margin-bottom: 26px; }
+.workspace-page .list-date strong, .workspace-page .date-stamp strong { font-family: "DM Sans",system-ui,sans-serif; }
+.workspace-page .agenda-panel { border-radius: 16px; }
+.workspace-page .agenda-item { padding: 22px 0; }
+.workspace-page .agenda-item > span > strong { font-size: 17px; }
+.workspace-page .agenda-item small { font-size: 13px; }
+.workspace-page .medium, .workspace-page .narrow { max-width: 850px; margin: 0 auto; }
+.workspace-page .medium > dl { background: var(--portal-surface); padding: 26px; border: 1px solid var(--line); border-radius: 14px; }
+.workspace-page .workspace-footer { margin-top: 40px; font-size: 12px; }
+@media(max-width:1000px) {
+ .workspace-page .provider-shortcuts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .workspace-page .workspace-nav { gap: 14px; flex-wrap: nowrap; overflow-x: auto; }
+ .workspace-page .workspace-nav a { white-space: nowrap; flex: none; }
+ .workspace-page .reservation-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+ .workspace-page .workspace-rail { padding: 0 16px; }
+ .workspace-page .workspace-heading { align-items: stretch; padding: 0 0 24px; }
+ .workspace-page .workspace-stats { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+ .workspace-page .workspace-stats > div, .workspace-page .workspace-stats > div + div { padding: 14px 12px; }
+ .workspace-page .workspace-stats strong { font-size: 28px; }
+ .workspace-page .stat-label { font-size: 8px; letter-spacing: .03em; }
+ .workspace-page .workspace-stats div > span:last-child { font-size: 10px; }
+ .workspace-page .provider-activity-grid { grid-template-columns: 1fr; }
+ .workspace-page .overview-agenda { padding: 22px 18px; }
+ .workspace-page .overview-agenda .section-heading { align-items: start; flex-direction: column; gap: 10px; }
+ .workspace-page .overview-date-count { display: none; }
+ .workspace-page .activity-editor-form { padding: 22px 18px; }
+ .workspace-page .reservation-row { padding: 18px; }
+ .workspace-page .reservation-amount { position: static; margin-left: auto; }
+ .workspace-page .reservation-filters { grid-template-columns: 1fr; }
+ .workspace-page .provider-shortcuts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .workspace-page .provider-shortcuts a { padding: 16px; }
+}
+@media print { .workspace-page .workspace-heading { border: 0; } .workspace-page .workspace-content { padding: 0; } }

@@ -7,14 +7,14 @@
 <link rel="stylesheet" th:href="@{/css/app.css}">
 <script defer th:src="@{/js/app.js}">
 </script>
-</head>
+<link rel="stylesheet" th:href="@{/css/theme.css}"></head>
 <body>
 <header th:replace="~{fragments :: header}">
 </header>
 <main>
 <div class="notice success" th:if="${success}" th:text="${success}">
 </div>
-<a th:href="@{/explore}">← Volver al catálogo</a>
+<a class="page-back" th:href="@{/explore}">← Volver al catálogo</a>
 <section class="detail-head">
 <p class="eyebrow" th:text="|${activity.department_name} / ${activity.locality_name}|">
 </p>
@@ -28,7 +28,7 @@
 </div>
 </section>
 <div class="two-columns">
-<section>
+<section class="detail-story">
 <h2>La experiencia</h2>
 <p class="preline" th:text="${activity.description}">
 </p>
@@ -67,7 +67,7 @@
 <a th:if="${#lists.size(reviews) == 20}" th:href="@{/activities/{id}(id=${activity.id},reviewPage=${reviewPage + 1})}">Más reseñas</a>
 </section>
 <aside class="panel">
-<p>Precio por persona</p>
+<p>Precio de referencia por persona</p>
 <h2 th:text="|UYU ${activity.unit_price}|">
 </h2>
 <h3>Próximas fechas</h3>
@@ -77,6 +77,7 @@
 </strong>
 <small th:text="|Finaliza ${@fmt.date(i.ends_at)}|">
 </small>
+<p th:text="|Precio por persona: UYU ${i.unit_price}|"></p>
 <p th:text="${i.available == null ? 'Cupo ilimitado' : i.available + ' lugares disponibles'}">
 </p>
 <small th:text="|Reservá hasta ${@fmt.date(i.deadline)}|">
@@ -91,7 +92,7 @@
 </article>
 </aside>
 </div>
-<p th:text="|Cancelación antes del inicio: reembolso total con al menos ${activity.full_refund_minutes} minutos de anticipación; con menos anticipación, ${activity.late_refund_percent} %. Si cancela el prestador, se devuelve el 100 %.|"></p>
+<p class="detail-policy" th:text="|Cancelación antes del inicio: reembolso total con al menos ${activity.full_refund_minutes} minutos de anticipación; con menos anticipación, ${activity.late_refund_percent} %. Si cancela el prestador, se devuelve el 100 %.|"></p>
 </main>
 <footer th:replace="~{fragments :: footer}">
 </footer>

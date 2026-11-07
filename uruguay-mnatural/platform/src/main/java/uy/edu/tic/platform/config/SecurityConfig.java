@@ -8,6 +8,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.security.web.SecurityFilterChain;
 import uy.edu.tic.platform.repository.Database;
 
@@ -61,10 +62,10 @@ public class SecurityConfig {
                     .requestMatchers(
                         "/api/v1/activities/**", "/api/v1/ventures", "/api/v1/payment-events")
                     .permitAll()
+                    .requestMatchers("/explore", "/activities/**")
+                    .access(new WebExpressionAuthorizationManager("isAnonymous() or hasRole('TOURIST')"))
                     .requestMatchers("/")
                     .authenticated()
-                    .requestMatchers("/explore", "/activities/**")
-                    .hasRole("TOURIST")
                     .requestMatchers("/admin/**")
                     .hasRole("ADMIN")
                     .requestMatchers("/provider/reapply")

@@ -1,12 +1,13 @@
 <!doctype html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <body>
+<a th:fragment="brand(destination)" class="brand" th:href="${destination}" aria-label="Uruguay Mnatural">UM<span>Uruguay<br>Mnatural</span></a>
 <header th:fragment="header">
-<a class="brand" th:href="@{/dashboard}">UM<span>Uruguay Mnatural</span>
-</a>
+<a th:replace="~{fragments :: brand(@{/explore})}"></a>
 <nav aria-label="Principal">
 <a th:if="${viewer != null and viewer.role == 'TOURIST'}" th:href="@{/explore}">Explorar</a>
 <th:block th:if="${viewer == null}">
+<a th:href="@{/explore}">Explorar</a>
 <a th:href="@{/register}">Crear cuenta</a>
 <a class="button small" th:href="@{/login}">Ingresar</a>
 </th:block>
@@ -33,7 +34,7 @@
 </div>
 <svg th:fragment="icon(name)" class="ws-icon" aria-hidden="true" viewBox="0 0 24 24"><use th:href="${'#ws-' + name}"></use></svg>
 <div role="banner" th:fragment="workspaceHeader" class="workspace-header">
-<a class="workspace-brand" th:href="@{/dashboard}" aria-label="Uruguay Mnatural, mi espacio"><span class="brand-symbol">m<span>n</span></span><span>URUGUAY<small>MNATURAL</small></span></a>
+<a th:replace="~{fragments :: brand(@{/dashboard})}"></a>
 <span class="workspace-edition">Un lugar para salir de lo de siempre.</span>
 <div class="workspace-account"><span class="account-avatar" th:text="${#strings.substring(viewer.first_name,0,1)}"></span><span th:text="${viewer.first_name}"></span><form th:action="@{/logout}" method="post"><button class="workspace-exit">Salir <svg th:replace="~{fragments :: icon('arrow')}"></svg></button></form></div>
 <svg class="ws-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -52,11 +53,11 @@
 <aside th:fragment="workspaceRail(role, enabled)" class="workspace-rail">
 <div><p class="rail-caption" th:text="${role == 'TOURIST' ? 'TU CUADERNO DE VIAJE' : (role == 'PROVIDER' ? 'TU EMPRENDIMIENTO' : 'ADMINISTRACIÓN')}"></p>
 <nav class="workspace-nav" aria-label="Mi espacio">
-<a class="is-current" th:href="@{/dashboard}" aria-current="page"><svg th:replace="~{fragments :: icon('grid')}"></svg>Mi espacio</a>
-<th:block th:if="${role == 'TOURIST'}"><a href="#mis-reservas"><svg th:replace="~{fragments :: icon('note')}"></svg>Mis reservas</a><a href="#opiniones"><svg th:replace="~{fragments :: icon('star')}"></svg>Mis opiniones</a><a th:href="@{/tourist/payment-methods}"><svg th:replace="~{fragments :: icon('note')}"></svg>Mis métodos de pago</a><span class="rail-divider"></span><a th:href="@{/explore}"><svg th:replace="~{fragments :: icon('compass')}"></svg>Explorar Uruguay<span class="nav-arrow"><svg th:replace="~{fragments :: icon('arrow')}"></svg></span></a></th:block>
-<th:block th:if="${role == 'PROVIDER' and enabled}"><a href="#actividades"><svg th:replace="~{fragments :: icon('compass')}"></svg>Mis actividades</a><a href="#agenda"><svg th:replace="~{fragments :: icon('calendar')}"></svg>Agenda</a><a th:href="@{/provider/reservations}"><svg th:replace="~{fragments :: icon('note')}"></svg>Reservas recibidas</a><span class="rail-divider"></span><a href="#contacto"><svg th:replace="~{fragments :: icon('pin')}"></svg>Mi emprendimiento</a></th:block>
+<a th:classappend="${currentPath == '/provider' or currentPath == '/admin' ? 'is-current' : ''}" th:if="${role != 'TOURIST'}" th:href="@{/dashboard}"><svg th:replace="~{fragments :: icon('grid')}"></svg>Resumen</a>
+<th:block th:if="${role == 'TOURIST'}"><a th:href="@{/tourist/reservations}" th:classappend="${touristSection == 'reservations' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('note')}"></svg>Mis reservas</a><a th:href="@{/tourist/reviews}" th:classappend="${touristSection == 'reviews' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('star')}"></svg>Mis opiniones</a><a th:href="@{/tourist/payment-methods}"><svg th:replace="~{fragments :: icon('note')}"></svg>Mis métodos de pago</a><span class="rail-divider"></span><a th:href="@{/explore}"><svg th:replace="~{fragments :: icon('compass')}"></svg>Explorar Uruguay<span class="nav-arrow"><svg th:replace="~{fragments :: icon('arrow')}"></svg></span></a></th:block>
+<th:block th:if="${role == 'PROVIDER' and enabled}"><a th:href="@{/provider/activities}" th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/provider/activities') ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('compass')}"></svg>Mis actividades</a><a th:href="@{/provider/agenda}" th:classappend="${providerSection == 'agenda' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('calendar')}"></svg>Agenda</a><a th:href="@{/provider/reservations}" th:classappend="${currentPath == '/provider/reservations' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('note')}"></svg>Reservas recibidas</a><span class="rail-divider"></span><a th:href="@{/provider/venture}" th:classappend="${providerSection == 'venture' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('pin')}"></svg>Mi emprendimiento</a></th:block>
 <th:block th:if="${role == 'PROVIDER' and !enabled}"><span class="nav-disabled" aria-disabled="true"><svg th:replace="~{fragments :: icon('compass')}"></svg>Actividades</span><span class="nav-disabled" aria-disabled="true"><svg th:replace="~{fragments :: icon('calendar')}"></svg>Agenda</span><span class="nav-disabled" aria-disabled="true"><svg th:replace="~{fragments :: icon('note')}"></svg>Reservas</span></th:block>
-<th:block th:if="${role == 'ADMIN'}"><a href="#emprendimientos"><svg th:replace="~{fragments :: icon('check')}"></svg>Emprendimientos</a><a href="#catalogos"><svg th:replace="~{fragments :: icon('note')}"></svg>Catálogos</a></th:block>
+<th:block th:if="${role == 'ADMIN'}"><a th:href="@{/admin/ventures}" th:classappend="${adminSection == 'ventures' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('check')}"></svg>Emprendimientos</a><a th:href="@{/admin/catalogs}" th:classappend="${adminSection == 'catalogs' ? 'is-current' : ''}"><svg th:replace="~{fragments :: icon('note')}"></svg>Catálogos</a></th:block>
 </nav></div>
 <div class="rail-bottom"><span class="rail-local">34° S · 56° O</span><p th:text="${role == 'TOURIST' ? 'Los mejores planes empiezan por hacerse un lugar.' : (role == 'PROVIDER' ? 'Detrás de cada experiencia, hay alguien que la hace posible.' : 'Cuidar cada detalle también es parte de la experiencia.')}"></p><span class="rail-signature">Hecho para descubrir Uruguay.</span></div>
 </aside>

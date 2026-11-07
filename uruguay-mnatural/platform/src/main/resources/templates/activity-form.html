@@ -5,20 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Editar actividad · Uruguay Mnatural</title>
 <link rel="stylesheet" th:href="@{/css/app.css}">
+<link rel="stylesheet" th:href="@{/css/workspace.css}">
 <script defer th:src="@{/js/app.js}">
 </script>
-</head>
-<body>
-<header th:replace="~{fragments :: header}">
-</header>
-<main>
+<link rel="stylesheet" th:href="@{/css/theme.css}"><link rel="stylesheet" th:href="@{/css/portal.css}"></head>
+<body class="workspace-page activity-editor-page">
+<header th:replace="~{fragments :: workspaceHeader}"></header>
+<div class="workspace-shell">
+<aside th:replace="~{fragments :: workspaceRail('PROVIDER', true)}"></aside>
+<main class="workspace-content">
+<div class="workspace-breadcrumb">MI ESPACIO <span>/</span> PRESTADOR <span>/</span> ACTIVIDADES</div>
 <div class="notice success" th:if="${success}" th:text="${success}">
 </div>
-<section class="medium">
-<a th:href="@{/provider}">← Mi emprendimiento</a>
-<h1 th:text="${activityId == null ? 'Nueva actividad' : 'Editar actividad'}">
-</h1>
-<form th:action="@{/provider/activities}" method="post" th:object="${form}">
+<section class="activity-editor">
+<div class="workspace-heading"><div><h1 th:text="${activityId == null ? 'Nueva actividad' : 'Editar actividad'}"></h1><p>Definí la experiencia que vas a ofrecer. Después podrás agregar fechas y cupos.</p></div><a class="page-back" th:href="@{/provider/activities}">← Mis actividades</a></div>
+<form class="activity-editor-form" th:action="@{/provider/activities}" method="post" th:object="${form}">
 <input th:if="${activityId != null}" type="hidden" name="activityId" th:value="${activityId}">
 <div class="notice" th:if="${#fields.hasAnyErrors()}">
 <p th:each="err:${#fields.allErrors()}" th:text="${err}">
@@ -91,11 +92,10 @@
 <label class="check">
 <input type="checkbox" name="published" value="true" th:checked="${form.published}">Publicar actividad (requiere emprendimiento verificado)</label>
 <p class="muted">Los cambios de duración se aplican a nuevas instancias. Las reservas existentes conservan sus condiciones.</p>
-<button>Guardar actividad</button>
+<div class="activity-editor-actions"><a th:href="@{/provider/activities}">Cancelar</a><button>Guardar actividad</button></div>
 </form>
 </section>
 </main>
-<footer th:replace="~{fragments :: footer}">
-</footer>
+</div>
 </body>
 </html>

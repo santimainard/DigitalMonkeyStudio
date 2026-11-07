@@ -67,7 +67,7 @@ public class ReservationTransactions {
         (Integer) i.get("capacity"),
         tourism.committed(instance));
     UUID id = UUID.randomUUID();
-    BigDecimal price = (BigDecimal) a.get("unit_price"), amount = total(price, count);
+    BigDecimal price = (BigDecimal) i.get("unit_price"), amount = total(price, count);
     db.update(
         "insert into"
             + " reservation(id,tourist_id,instance_id,idempotency_key,participant_count,status,expires_at,activity_name_snapshot,location_snapshot,unit_price_snapshot,currency,total_amount,starts_at_snapshot,ends_at_snapshot,lead_minutes_snapshot,created_at)"

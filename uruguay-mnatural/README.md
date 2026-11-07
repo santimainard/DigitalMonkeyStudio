@@ -4,7 +4,7 @@
 
 Estas decisiones sustituyen el alcance anterior que excluía cancelaciones y devoluciones y permitía operar a prestadores pendientes.
 
-- Al entrar se exige iniciar sesión o crear cuenta. El login lleva siempre a Mi espacio. Solo turistas acceden a Explorar (`/explore`) y al detalle de actividades; prestadores y administradores tienen sus paneles. La API de consulta externa conserva sus rutas públicas.
+- Al entrar se exige iniciar sesión o crear cuenta. El login lleva siempre a Mi espacio. Visitantes sin sesión y turistas acceden a Explorar (`/explore`) y al detalle de actividades; prestadores y administradores tienen sus paneles. La API de consulta externa conserva sus rutas públicas.
 - El prestador pendiente o denegado solo ve su solicitud y puede salir. No puede crear/editar actividades, fechas, contacto ni consultar reservas, incluso enviando rutas directamente. El administrador habilita el emprendimiento, no cada actividad.
 - La denegación exige motivo (hasta 2.000 caracteres) y es definitiva para ese emprendimiento. El prestador conserva acceso al motivo, pero no puede volver a solicitar verificación. No se permite denegar un emprendimiento ya verificado mediante este flujo.
 - El prestador define por actividad la anticipación para reembolso total (minutos, de 0 a 525.600) y el porcentaje a devolver fuera de ese plazo (entero de 0 a 100). En el límite exacto de anticipación corresponde el 100 %. El porcentaje es **lo que se devuelve**, no la penalización.
@@ -43,7 +43,7 @@ La lista cerrada de tarjetas, los estados, la tokenización, las migraciones y l
 
 ## Mi espacio
 
-Cada rol tiene un panel propio con navegación, resumen y acciones de su cuenta. El turista ve sus próximas salidas y reservas; el prestador, su agenda y actividades; el administrador, la revisión de emprendimientos y los catálogos. Los estados pendiente y denegado tienen una vista informativa sin funciones operativas. El diseño se adapta a escritorio y móvil y funciona con recursos locales, sin fuentes ni bibliotecas visuales externas.
+Cada rol tiene un panel propio con navegación entre subpáginas, resumen y acciones de su cuenta. El turista ve sus próximas salidas y reservas; el prestador, su agenda y actividades; el administrador, la revisión de emprendimientos y los catálogos. Los estados pendiente y denegado tienen una vista informativa sin funciones operativas. El diseño se adapta a escritorio y móvil y funciona con recursos locales, sin fuentes ni bibliotecas visuales externas.
 
 ## Cuentas
 
@@ -129,3 +129,9 @@ git commit -m "Implementación inicial de Uruguay Mnatural"
 ```
 
 Configurá tu nombre y correo en Git si todavía no lo hiciste. No agregues `.env` al repositorio.
+
+## Precios por fecha y base local
+
+Cada fecha de una actividad puede tener su propio precio por persona. La reserva conserva el precio de la fecha elegida aunque el prestador lo modifique después. La migración V7 inicializa los precios de las fechas existentes.
+
+PostgreSQL se publica en `127.0.0.1:55432` para conexiones desde la computadora; dentro de Docker conserva el puerto `5432`.

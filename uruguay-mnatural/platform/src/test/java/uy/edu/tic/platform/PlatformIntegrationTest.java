@@ -49,6 +49,25 @@ class PlatformIntegrationTest {
         .setAuthentication(new UsernamePasswordAuthenticationToken(email, "unused", List.of()));
   }
 
+  @Test
+  void privateWorkspaceSubpagesRender() throws Exception {
+    for (String path : List.of("/provider", "/provider/activities", "/provider/agenda",
+        "/provider/venture", "/provider/reservations", "/provider/activities/new",
+        "/provider/activities/" + activity + "/edit",
+        "/provider/activities/" + activity + "/instances")) {
+      mvc.perform(get(path).with(user(providerEmail).roles("PROVIDER")))
+          .andExpect(status().isOk());
+    }
+    for (String path : List.of("/tourist/reservations", "/tourist/reviews", "/tourist/payment-methods")) {
+      mvc.perform(get(path).with(user(touristEmail).roles("TOURIST")))
+          .andExpect(status().isOk());
+    }
+    for (String path : List.of("/admin", "/admin/ventures", "/admin/catalogs")) {
+      mvc.perform(get(path).with(user("admin@example.test").roles("ADMIN")))
+          .andExpect(status().isOk());
+    }
+  }
+
   @BeforeEach
   void setup() {
     String tag = UUID.randomUUID().toString().substring(0, 8);
@@ -397,6 +416,10 @@ class PlatformIntegrationTest {
           .andExpect(status().isForbidden());
     mvc.perform(post("/provider/venture").with(user(providerEmail).roles("PROVIDER")).with(csrf()))
         .andExpect(status().isForbidden());
+    mvc.perform(get("/explore").with(anonymous())).andExpect(status().isOk());
+    // A pending provider's activity is hidden from the public catalog.
+    mvc.perform(get("/activities/" + activity).with(anonymous()))
+        .andExpect(status().isNotFound());
     for (String role : List.of("PROVIDER", "ADMIN"))
       for (String path : List.of("/explore", "/activities/" + activity))
         mvc.perform(
@@ -405,6 +428,8 @@ class PlatformIntegrationTest {
                         user(role.equals("ADMIN") ? "admin@example.test" : providerEmail)
                             .roles(role)))
             .andExpect(status().isForbidden());
+    mvc.perform(get("/tourist/prepare").param("instanceId", instance + "").with(anonymous()))
+        .andExpect(status().is3xxRedirection());
     SecurityContextHolder.clearContext();
     mvc.perform(get("/").with(anonymous()))
         .andExpect(status().is3xxRedirection())

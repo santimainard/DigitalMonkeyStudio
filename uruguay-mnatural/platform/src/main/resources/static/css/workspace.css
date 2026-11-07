@@ -24,3 +24,19 @@
 
 .payment-workspace{grid-template-columns:minmax(0,1fr) 360px}.payment-workspace .workspace-note h2{font-size:27px}.card-expiry{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card-expiry>label{min-width:0}.payment-workspace label small{font-weight:400;font-size:11px}
 @media(max-width:1100px){.payment-workspace{grid-template-columns:1fr}}
+
+/* Activity editing uses the same workspace shell as the provider dashboard. */
+.activity-editor{max-width:920px}
+.activity-editor .workspace-heading{align-items:flex-start;margin-bottom:28px}
+.activity-editor .workspace-heading h1{margin-bottom:8px}
+.activity-editor .workspace-heading p{max-width:60ch;color:var(--ws-muted);font-size:15px}
+.activity-editor .page-back{flex-shrink:0;margin:4px 0 0;background:transparent;border-color:var(--ws-line);color:var(--ws-ink)}
+.activity-editor-form{padding:32px;background:#fcfbf7;border:1px solid var(--ws-line);border-radius:12px}
+.activity-editor-form>label{max-width:100%}
+.activity-editor-form fieldset{margin:26px 0;border-color:var(--ws-line)}
+.activity-editor-form fieldset legend{padding:0 8px;color:var(--ws-ink)}
+.activity-editor-form .row>fieldset{min-width:240px}
+.activity-editor-actions{display:flex;justify-content:flex-end;align-items:center;gap:24px;padding-top:24px;border-top:1px solid var(--ws-line)}
+.activity-editor-actions a{font-size:14px;font-weight:600}
+.activity-editor-actions button{min-width:170px}
+@media(max-width:700px){.activity-editor .workspace-heading{flex-direction:column}.activity-editor .page-back{order:-1}.activity-editor-form{padding:22px 18px}.activity-editor-actions{flex-wrap:wrap}}
